@@ -211,68 +211,70 @@ def generateBlocktable(timeStep):
         bt[t] = set()
     return bt
 
+def simulateSchedule(schedule, blockTable):
+    for line in linedata:
+        print("processing line " + line["id"])
+    
+        time = 0
+        total_duration = 0
+        total_wait = 0
+        total_wait_nobuffer = 0
+
+        for i in range(0, len(line["stops"])):
+            iNext = (i + 1) % len(line["stops"])
+
+            stop = line["stops"][i]
+        # FIXME: why are the depSigs in a dict instead of a list?
+            path = list(line["routing"][i].values())[0]["next"][0]["path"] 
+        
+        # waiting for first departure
+            if i == 0:
+                while isBlocked("*|" + path[0], time, blockTable):
+                    time = t36.timeShift(time, timeStep)
+                if time > 0:
+                    startTime = time
+                    print("  can't start until " + t36.timeFormat(time))
+
+        # waiting at stop
+            waitTime = stop["stop_time"]
+            while waitTime > 0:
+                blockTable[timeSlot(time)].add("*|N_" + path[0][2:])
+                blockTable[timeSlot(time)].add("*|K_" + path[0][2:])
+
+                ts = min(waitTime, timeStep)
+                waitTime -= ts
+                time = t36.timeShift(time, ts)
+        # wait while advancing time and blocking
+
+        # traveling to next stop
+            travelData = travelPath(path, time, blockTable)
+
+            time = t36.timeShift(time, travelData["duration"])
+            total_duration += travelData["duration"]
+            total_wait += travelData["wait"]
+            if not line["stops"][iNext]["buffer_stop"]:
+                total_wait_nobuffer += travelData["wait"]
+
+        print(line["id"] + " -> " + str(total_duration) + "s, of that " + str(total_wait) + "s waiting for other trains, of that " + str(total_wait_nobuffer) + "s outside of buffer stations")
+        print("")
 
 
-
-#Loading infrastructure data
+# Loading infrastructure data
 sigdata = {}
 for fname in os.listdir("data/signals"):
     for sig in load_json("data/signals/" + fname):
         sigdata[sig["id"]] = sig
 
+# settings
 timeStep = 15
 
+# loading and processing lines
 paths = {}
 linedata, schedule = loadLines()
 blockTable = generateBlocktable(timeStep)
 
-
-
-for line in linedata:
-    print("processing line " + line["id"])
-    
-    time = 0
-    total_duration = 0
-    total_wait = 0
-    total_wait_nobuffer = 0
-
-    for i in range(0, len(line["stops"])):
-        iNext = (i + 1) % len(line["stops"])
-
-        stop = line["stops"][i]
-        # FIXME: why are the depSigs in a dict instead of a list?
-        path = list(line["routing"][i].values())[0]["next"][0]["path"] 
-        
-        # waiting for first departure
-        if i == 0:
-            while isBlocked("*|" + path[0], time, blockTable):
-                time = t36.timeShift(time, timeStep)
-            if time > 0:
-                startTime = time
-                print("  can't start until " + t36.timeFormat(time))
-
-        # waiting at stop
-        waitTime = stop["stop_time"]
-        while waitTime > 0:
-            blockTable[timeSlot(time)].add("*|N_" + path[0][2:])
-            blockTable[timeSlot(time)].add("*|K_" + path[0][2:])
-
-            ts = min(waitTime, timeStep)
-            waitTime -= ts
-            time = t36.timeShift(time, ts)
-        # wait while advancing time and blocking
-
-        # traveling to next stop
-        travelData = travelPath(path, time, blockTable)
-
-        time = t36.timeShift(time, travelData["duration"])
-        total_duration += travelData["duration"]
-        total_wait += travelData["wait"]
-        if not line["stops"][iNext]["buffer_stop"]:
-            total_wait_nobuffer += travelData["wait"]
-
-    print(line["id"] + " -> " + str(total_duration) + "s, of that " + str(total_wait) + "s waiting for other trains, of that " + str(total_wait_nobuffer) + "s outside of buffer stations")
-    print("")
+# generate schedule
+simulateSchedule(schedule, blockTable)
 
 
     # TODO:
