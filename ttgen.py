@@ -162,7 +162,7 @@ def travelPath(path, time, blockTable, block = True, wait = True):
 
         #waiting until signal path is no longer blocked
         if wait:
-            while sigPath in blockTable[timeSlot(time)]:
+            while isBlocked(sigPath, time, blockTable):
                 time = timeShift(time, timeStep)
                 waitDuration += timeStep
 
@@ -185,10 +185,14 @@ def travelPath(path, time, blockTable, block = True, wait = True):
     duration = timeDiff(timeStart, time)
 
     return {
+        "id":sigPath,
         "duration": duration,
         "wait": waitDuration,
         "blockTable": blockTable
     }
+
+def isBlocked(sigPath, time, blockTable):
+    return sigPath in blockTable[timeSlot(time)]
 
 
 linedata.sort(key = lambda l: l["prio"], reverse = True)
@@ -219,7 +223,11 @@ for line in linedata:
         segment = list(line["routing"][i].values())[0]["next"][0]["path"]
         travelData = travelPath(segment, time, blockTable)
 
+        if travelData["wait"] > 0:
+            print(line["id"] + " waiting at " + travelData["id"] + " for " + str(travelData["wait"]) + "s")
+
+        time = timeShift(time, travelData["duration"])
         total_duration += travelData["duration"]
         total_wait += travelData["wait"]
 
-    print(line["id"] + " -> " + str(total_duration) + "s")
+    print(line["id"] + " -> " + str(total_duration) + "s, of that " + str(total_wait) + "s waiting for other trains")
