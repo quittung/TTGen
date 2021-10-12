@@ -49,7 +49,7 @@ destinations = []
 file_load = False
 raw_fname = "data/stations_raw/" + station_id + ".json"
 if (not debug) and os.path.exists(raw_fname):
-    if input("Station data already exists. Recover? (y/n)") == "y":
+    if input("Station data already exists. Recover? (y/n) ") == "y":
         file_load = True
         with open(raw_fname, 'r') as fobj:
             destinations = json.loads(fobj.read())
@@ -61,7 +61,7 @@ if not debug and not file_load:
     print()
     print("Next is the K side.")
     destinations += collect_destinations("K")
-else:
+elif debug:
     destinations.append({
             "direction":"N",
             "route":"R1",
@@ -132,6 +132,12 @@ def create_sigdata (sig_name, sig_next, sig_reverse):
         print(sig_data)
 
 
+def getReverseSig(t, dir):
+    if t in tracks_out[1 - dir]:
+        return encode_signame(None, dirs[1 - dir], station_id, t)
+    else:
+        return None
+
 for dir in [0,1]:
     if len(dests_filtered[dir]) == 0: continue
 
@@ -149,9 +155,7 @@ for dir in [0,1]:
                     "blocks": []
                 })
 
-        sig_reverse = None
-        if t in tracks_out[1 - dir]:
-            sig_reverse = encode_signame(None, dirs[1 - dir], station_id, t)
+        sig_reverse = getReverseSig(t, dir)
         
         create_sigdata(sig_name, sig_next, sig_reverse)
 
@@ -170,10 +174,15 @@ for dir in [0,1]:
                     "ete": 0,
                     "blocks": []
                 })
+            
+                #generate dead end signal
+                if not t in tracks_out[1 - dir] and len([s for s in sig_list if s["id"] == dest_name]) == 0:
+                    create_sigdata(dest_name, [], getReverseSig(t, 1 - dir))
 
         sig_reverse = None
 
         create_sigdata(sig_name, sig_next, sig_reverse)
+
 
     print("Please enter information about conflicting paths:")
     for s in sig_list:
