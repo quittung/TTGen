@@ -143,6 +143,12 @@ def timeDiff(timeA, timeB):
 def timeSlot(time):
     return time - time % timeStep
 
+def timeFormat(seconds):
+    minutes = math.floor(seconds / 60)
+    seconds -= minutes * 60
+    minutes -= math.floor(minutes / 60) * 60
+    return(str(minutes).zfill(2) + ":" + str(seconds).zfill(2))
+
 def getSigPath(sigPath):
     depSig, arrSig = sigPath.split("|")
     depSig = sigdata[depSig]
@@ -165,6 +171,8 @@ def travelPath(path, time, blockTable, block = True, wait = True):
             while isBlocked(sigPath, time, blockTable):
                 time = timeShift(time, timeStep)
                 waitDuration += timeStep
+            if waitDuration > 0:
+                print("  waiting at " + sigPath + " for " + str(waitDuration) + "s")
 
         #traveling through signal path
         spDuration = 45 #placeholder for calculation of travel time for signal path
@@ -185,14 +193,19 @@ def travelPath(path, time, blockTable, block = True, wait = True):
     duration = timeDiff(timeStart, time)
 
     return {
-        "id":sigPath,
         "duration": duration,
         "wait": waitDuration,
         "blockTable": blockTable
     }
 
 def isBlocked(sigPath, time, blockTable):
-    return sigPath in blockTable[timeSlot(time)]
+    if sigPath in blockTable[timeSlot(time)]: return True
+    
+    depSig, arrSig =  sigPath.split("|")
+    if depSig + "|*" in blockTable[timeSlot(time)]: return True
+    if "*|" + arrSig in blockTable[timeSlot(time)]: return True
+
+    return False
 
 
 linedata.sort(key = lambda l: l["prio"], reverse = True)
@@ -202,7 +215,7 @@ for t in range(0, 3600, timeStep):
     blockTable[t] = set()
 
 for line in linedata:
-
+    print("processing line " + line["id"])
     line["routing"] = validateLine(line)
 
     """
@@ -216,18 +229,47 @@ for line in linedata:
     time = 0
     total_duration = 0
     total_wait = 0
+    total_wait_nobuffer = 0
 
     for i in range(0, len(line["stops"])):
         iNext = (i + 1) % len(line["stops"])
+        stop = line["stops"][i]
+        path = list(line["routing"][i].values())[0]["next"][0]["path"]
+        
+        # waiting for first departure
+        if i == 0:
+            while isBlocked("*|" + path[0], time, blockTable):
+                time = timeShift(time, timeStep)
+            if time > 0:
+                print("  can't start until " + timeFormat(time))
 
-        segment = list(line["routing"][i].values())[0]["next"][0]["path"]
-        travelData = travelPath(segment, time, blockTable)
+        # waiting at stop
+        waitTime = stop["stop_time"]
+        while waitTime > 0:
+            blockTable[timeSlot(time)].add("*|N_" + path[0][2:])
+            blockTable[timeSlot(time)].add("*|K_" + path[0][2:])
 
-        if travelData["wait"] > 0:
-            print(line["id"] + " waiting at " + travelData["id"] + " for " + str(travelData["wait"]) + "s")
+            ts = min(waitTime, timeStep)
+            waitTime -= ts
+            time = timeShift(time, ts)
+        # wait while advancing time and blocking
+
+        # traveling to next stop
+        travelData = travelPath(path, time, blockTable)
 
         time = timeShift(time, travelData["duration"])
         total_duration += travelData["duration"]
         total_wait += travelData["wait"]
+        if not line["stops"][iNext]["buffer_stop"]:
+            total_wait_nobuffer += travelData["wait"]
 
-    print(line["id"] + " -> " + str(total_duration) + "s, of that " + str(total_wait) + "s waiting for other trains")
+    print(line["id"] + " -> " + str(total_duration) + "s, of that " + str(total_wait) + "s waiting for other trains, of that " + str(total_wait_nobuffer) + "s outside of buffer stations")
+    print("")
+
+
+    # TODO:
+    # - Deal with trains blocking station tracks
+    #   - maybe add a "sigpath" for every track that blocks all sigpaths that end on that tracks signals
+    # - Implement solver for minimizing waiting time on non buffer stops
+    #   - modify start time and wait times
+    #   - use alternate routing
