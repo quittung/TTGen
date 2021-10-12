@@ -184,6 +184,7 @@ class ScheduleVariation:
     """Contains all variables determining the exact determination of determined people. Yes."""
     def __init__(self, numberStops: int) -> None:
         self.startTime = 0
+        self.startTrack = 0
         self.waitTime = [0] * numberStops
         self.branch = [0] * numberStops
 
@@ -214,20 +215,32 @@ def generateBlocktable(timeStep):
 def simulateSchedule(schedule, blockTable):
     for line in linedata:
         print("processing line " + line["id"])
+
+        sLine: ScheduleVariation = schedule[line["id"]]
     
-        time = 0
+        time = sLine.startTime
         total_duration = 0
         total_wait = 0
         total_wait_nobuffer = 0
+
+        # choose where to start
+        # FIXME: why are the depSigs in a dict instead of a list?
+        startSignal = list(line["routing"][0].values())[sLine.startTrack]
 
         for i in range(0, len(line["stops"])):
             iNext = (i + 1) % len(line["stops"])
 
             stop = line["stops"][i]
-        # FIXME: why are the depSigs in a dict instead of a list?
-            path = list(line["routing"][i].values())[0]["next"][0]["path"] 
+            path = startSignal["next"][sLine.branch[i]]["path"] 
+
+            if path[-1] in line["routing"][iNext]:
+                startSignal = line["routing"][iNext][path[-1]]
+            else:
+                for s in line["routing"][iNext]:
+                    if sigdata[s]["reverse"] == path[-1]:
+                        startSignal = s
         
-        # waiting for first departure
+            # waiting for first departure
             if i == 0:
                 while isBlocked("*|" + path[0], time, blockTable):
                     time = t36.timeShift(time, timeStep)
@@ -235,8 +248,8 @@ def simulateSchedule(schedule, blockTable):
                     startTime = time
                     print("  can't start until " + t36.timeFormat(time))
 
-        # waiting at stop
-            waitTime = stop["stop_time"]
+            # waiting at stop
+            waitTime = stop["stop_time"] + sLine.waitTime[i]
             while waitTime > 0:
                 blockTable[timeSlot(time)].add("*|N_" + path[0][2:])
                 blockTable[timeSlot(time)].add("*|K_" + path[0][2:])
@@ -244,9 +257,9 @@ def simulateSchedule(schedule, blockTable):
                 ts = min(waitTime, timeStep)
                 waitTime -= ts
                 time = t36.timeShift(time, ts)
-        # wait while advancing time and blocking
+            # wait while advancing time and blocking
 
-        # traveling to next stop
+            # traveling to next stop
             travelData = travelPath(path, time, blockTable)
 
             time = t36.timeShift(time, travelData["duration"])
@@ -254,6 +267,7 @@ def simulateSchedule(schedule, blockTable):
             total_wait += travelData["wait"]
             if not line["stops"][iNext]["buffer_stop"]:
                 total_wait_nobuffer += travelData["wait"]
+
 
         print(line["id"] + " -> " + str(total_duration) + "s, of that " + str(total_wait) + "s waiting for other trains, of that " + str(total_wait_nobuffer) + "s outside of buffer stations")
         print("")
