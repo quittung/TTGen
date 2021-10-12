@@ -2,26 +2,16 @@ import json
 import math
 import os
 
-timeStep = 15
-import lib.time3600 as t36
+import util.time3600 as t36
+
+
 
 def load_json(fname):
     with open(fname, 'r') as fobj:
         return json.loads(fobj.read())
 
 
-#Loading infrstructure data
-sigdata = {}
-for fname in os.listdir("data/signals"):
-    for sig in load_json("data/signals/" + fname):
-        sigdata[sig["id"]] = sig
 
-linedata = []
-for fname in os.listdir("data/lines"):
-    linedata.append(load_json("data/lines/" + fname))
-
-
-paths = {}
 
 def search(pos, ontgt, length = 0, maxlength = 1000):
     # target found
@@ -152,7 +142,7 @@ def travelPath(path, time, blockTable, block = True, wait = True):
         #waiting until signal path is no longer blocked
         if wait:
             while isBlocked(sigPath, time, blockTable):
-                time = timeShift(time, timeStep)
+                time = t36.timeShift(time, timeStep)
                 waitDuration += timeStep
             if waitDuration > 0:
                 print("  waiting at " + sigPath + " for " + str(waitDuration) + "s")
@@ -169,11 +159,11 @@ def travelPath(path, time, blockTable, block = True, wait = True):
 
                 ts = min(spDuration, timeStep)
                 spDuration -= ts
-                time = timeShift(time, ts)
+                time = t36.timeShift(time, ts)
         else:
-            time = timeShift(time, spDuration)
+            time = t36.timeShift(time, spDuration)
 
-    duration = timeDiff(timeStart, time)
+    duration = t36.timeDiff(timeStart, time)
 
     return {
         "duration": duration,
@@ -190,25 +180,57 @@ def isBlocked(sigPath, time, blockTable):
 
     return False
 
+class ScheduleVariation:
+    """Contains all variables determining the exact determination of determined people. Yes."""
+    def __init__(self, numberStops: int) -> None:
+        self.startTime = 0
+        self.waitTime = [0] * numberStops
+        self.branch = [0] * numberStops
 
-linedata.sort(key = lambda l: l["prio"], reverse = True)
+    def __repr__(self) -> str:
+        return str(self.__dict__)
 
-blockTable = {}
-for t in range(0, 3600, timeStep):
-    blockTable[t] = set()
+def loadLines():
+    line_raw = []
+    schedule ={}
+
+    for fname in os.listdir("data/lines"):
+        line_raw.append(load_json("data/lines/" + fname))
+
+    line_raw.sort(key = lambda l: l["prio"], reverse = True)
+
+    for line in line_raw:
+        schedule[line["id"]] = ScheduleVariation(len(line["stops"]))
+        line["routing"] = validateLine(line)
+
+    return line_raw, schedule
+
+def generateBlocktable(timeStep):
+    bt = {}
+    for t in range(0, 3600, timeStep):
+        bt[t] = set()
+    return bt
+
+
+
+
+#Loading infrastructure data
+sigdata = {}
+for fname in os.listdir("data/signals"):
+    for sig in load_json("data/signals/" + fname):
+        sigdata[sig["id"]] = sig
+
+timeStep = 15
+
+paths = {}
+linedata, schedule = loadLines()
+blockTable = generateBlocktable(timeStep)
+
+
 
 for line in linedata:
     print("processing line " + line["id"])
-    line["routing"] = validateLine(line)
-
-    """
-    basically the only things i can change are
-      which routing to follow 
-      how long to wait before departing
-    so how about this:
-      for now just use 0 wait and route choice 0
-    """
-
+    
     time = 0
     total_duration = 0
     total_wait = 0
@@ -216,14 +238,17 @@ for line in linedata:
 
     for i in range(0, len(line["stops"])):
         iNext = (i + 1) % len(line["stops"])
+
         stop = line["stops"][i]
-        path = list(line["routing"][i].values())[0]["next"][0]["path"]
+        # FIXME: why are the depSigs in a dict instead of a list?
+        path = list(line["routing"][i].values())[0]["next"][0]["path"] 
         
         # waiting for first departure
         if i == 0:
             while isBlocked("*|" + path[0], time, blockTable):
                 time = t36.timeShift(time, timeStep)
             if time > 0:
+                startTime = time
                 print("  can't start until " + t36.timeFormat(time))
 
         # waiting at stop
@@ -251,8 +276,6 @@ for line in linedata:
 
 
     # TODO:
-    # - Deal with trains blocking station tracks
-    #   - maybe add a "sigpath" for every track that blocks all sigpaths that end on that tracks signals
     # - Implement solver for minimizing waiting time on non buffer stops
     #   - modify start time and wait times
     #   - use alternate routing
