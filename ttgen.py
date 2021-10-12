@@ -2,6 +2,8 @@ import json
 import math
 import os
 
+timeStep = 15
+
 def load_json(fname):
     with open(fname, 'r') as fobj:
         return json.loads(fobj.read())
@@ -129,19 +131,73 @@ def validateLine(line):
 
     return connections
         
+def timeShift(time, diff):
+    return (time + diff) % 3600
 
-def estimateTravelTime(path, time):
-    """dummy thicc function"""
+def timeDiff(timeA, timeB):
+    """this function assumes timeB is after timeA"""
+    if timeB < timeA:
+        timeB += 3600
+    return timeB - timeA
 
-    duration = (len(path) - 1) * 45
-    duration += min(duration / 3, 40)
-    return duration
+def timeSlot(time):
+    return time - time % timeStep
+
+def getSigPath(sigPath):
+    depSig, arrSig = sigPath.split("|")
+    depSig = sigdata[depSig]
+    return [s for s in depSig["next"] if s["id"] == arrSig][0]
 
 
-schedules = []
+
+def travelPath(path, time, blockTable, block = True, wait = True):
+    """dummy function"""
+    
+    duration = 0
+    waitDuration = 0
+    timeStart = time
+
+    for i in range(0, len(path) - 1):
+        sigPath = path[i] + "|" + path[i + 1]
+
+        #waiting until signal path is no longer blocked
+        if wait:
+            while sigPath in blockTable[timeSlot(time)]:
+                time = timeShift(time, timeStep)
+                waitDuration += timeStep
+
+        #traveling through signal path
+        spDuration = 45 #placeholder for calculation of travel time for signal path
+
+        #blocking current and related paths
+        if block:
+            while spDuration > 0:
+                blockSlot = blockTable[timeSlot(time)]
+                blockSlot.add(sigPath)
+                [blockSlot.add(s) for s in getSigPath(sigPath)["blocks"]]
+
+                ts = min(spDuration, timeStep)
+                spDuration -= ts
+                time = timeShift(time, ts)
+        else:
+            time = timeShift(time, spDuration)
+
+    duration = timeDiff(timeStart, time)
+
+    return {
+        "duration": duration,
+        "wait": waitDuration,
+        "blockTable": blockTable
+    }
+
+
 linedata.sort(key = lambda l: l["prio"], reverse = True)
+
+blockTable = {}
+for t in range(0, 3600, timeStep):
+    blockTable[t] = set()
+
 for line in linedata:
-    schedule = {}
 
     line["routing"] = validateLine(line)
 
@@ -153,56 +209,17 @@ for line in linedata:
       for now just use 0 wait and route choice 0
     """
 
+    time = 0
     total_duration = 0
+    total_wait = 0
+
     for i in range(0, len(line["stops"])):
         iNext = (i + 1) % len(line["stops"])
 
         segment = list(line["routing"][i].values())[0]["next"][0]["path"]
-        duration = estimateTravelTime(segment, 0)
-        total_duration += duration
+        travelData = travelPath(segment, time, blockTable)
+
+        total_duration += travelData["duration"]
+        total_wait += travelData["wait"]
 
     print(line["id"] + " -> " + str(total_duration) + "s")
-        
-
-    time_start = 0
-
-
-""" 
-time_min = 0
-for stop in data["stops"]:
-    time_min += stop["stop_time"] + stop["travel_time"]
- 
-
-time_sep = data["separation"] * 60
-number_trains = math.ceil(time_min/time_sep)
-
-buffer_time = number_trains * time_sep - time_min
-buffer_stops = 0
-for stop in data["stops"]:
-    if stop["buffer_stop"]:
-        buffer_stops += 1
-
-def time_format(seconds):
-    minutes = math.floor(seconds / 60)
-    seconds -= minutes * 60
-    minutes -= math.floor(minutes / 60) * 60
-    return(str(minutes).zfill(2) + ":" + str(seconds).zfill(2))
-
-
-print("Timetable buffer: " + time_format(buffer_time))
-print("Number of Trains: " + str(number_trains))
-print("")
-
-time = time_start
-for stop in data["stops"]:
-    print(stop["id"])
-    print(time_format(time))
-    time += stop["stop_time"]
-    if stop["buffer_stop"]:
-        time += math.floor(buffer_time / buffer_stops)
-    print(time_format(time))
-    time += stop["travel_time"]
-    print("")
-
-# Closing file
-f.close() """
