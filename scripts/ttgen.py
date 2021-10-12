@@ -130,10 +130,8 @@ def getSigPath(sigPath):
     return [s for s in depSig["next"] if s["id"] == arrSig][0]
 
 def travelPath(path, time, blockTable, block = True, wait = True):
-    """dummy function"""
-    
     duration = 0
-    waitDuration = 0
+    totalWait = 0
     timeStart = time
 
     for i in range(0, len(path) - 1):
@@ -141,11 +139,13 @@ def travelPath(path, time, blockTable, block = True, wait = True):
 
         #waiting until signal path is no longer blocked
         if wait:
+            waitDuration = 0
             while isBlocked(sigPath, time, blockTable):
                 time = t36.timeShift(time, timeStep)
                 waitDuration += timeStep
             if waitDuration > 0:
                 print("  waiting at " + sigPath + " for " + str(waitDuration) + "s")
+                totalWait += waitDuration
 
         #traveling through signal path
         spDuration = 45 #placeholder for calculation of travel time for signal path
@@ -167,7 +167,7 @@ def travelPath(path, time, blockTable, block = True, wait = True):
 
     return {
         "duration": duration,
-        "wait": waitDuration,
+        "wait": totalWait,
         "blockTable": blockTable
     }
 
