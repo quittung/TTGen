@@ -47,7 +47,7 @@ def collect_destinations(side):
 destinations = []
 
 file_load = False
-raw_fname = "stndata/" + station_id + ".json"
+raw_fname = "data/stations_raw/" + station_id + ".json"
 if (not debug) and os.path.exists(raw_fname):
     if input("Station data already exists. Recover? (y/n)") == "y":
         file_load = True
@@ -196,7 +196,7 @@ for dir in [0,1]:
 
 
 
-json_fname = "signals/" + station_id + ".json"
+json_fname = "data/signals/" + station_id + ".json"
 print("Writing data as " + json_fname)
 with open(json_fname, 'w') as json_file:
   json.dump(sig_list, json_file, indent = 2)
