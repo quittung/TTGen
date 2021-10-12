@@ -3,6 +3,7 @@ import math
 import os
 
 timeStep = 15
+import lib.time3600 as t36
 
 def load_json(fname):
     with open(fname, 'r') as fobj:
@@ -74,7 +75,6 @@ def findTracks(sta_start, sta_end):
     
     return connections
 
-
 def validateLine(line): 
     """
     makes sure a line's route is actually connected and returns a list of possible routes
@@ -130,31 +130,14 @@ def validateLine(line):
 
 
     return connections
-        
-def timeShift(time, diff):
-    return (time + diff) % 3600
-
-def timeDiff(timeA, timeB):
-    """this function assumes timeB is after timeA"""
-    if timeB < timeA:
-        timeB += 3600
-    return timeB - timeA
 
 def timeSlot(time):
     return time - time % timeStep
-
-def timeFormat(seconds):
-    minutes = math.floor(seconds / 60)
-    seconds -= minutes * 60
-    minutes -= math.floor(minutes / 60) * 60
-    return(str(minutes).zfill(2) + ":" + str(seconds).zfill(2))
 
 def getSigPath(sigPath):
     depSig, arrSig = sigPath.split("|")
     depSig = sigdata[depSig]
     return [s for s in depSig["next"] if s["id"] == arrSig][0]
-
-
 
 def travelPath(path, time, blockTable, block = True, wait = True):
     """dummy function"""
@@ -239,9 +222,9 @@ for line in linedata:
         # waiting for first departure
         if i == 0:
             while isBlocked("*|" + path[0], time, blockTable):
-                time = timeShift(time, timeStep)
+                time = t36.timeShift(time, timeStep)
             if time > 0:
-                print("  can't start until " + timeFormat(time))
+                print("  can't start until " + t36.timeFormat(time))
 
         # waiting at stop
         waitTime = stop["stop_time"]
@@ -251,13 +234,13 @@ for line in linedata:
 
             ts = min(waitTime, timeStep)
             waitTime -= ts
-            time = timeShift(time, ts)
+            time = t36.timeShift(time, ts)
         # wait while advancing time and blocking
 
         # traveling to next stop
         travelData = travelPath(path, time, blockTable)
 
-        time = timeShift(time, travelData["duration"])
+        time = t36.timeShift(time, travelData["duration"])
         total_duration += travelData["duration"]
         total_wait += travelData["wait"]
         if not line["stops"][iNext]["buffer_stop"]:
