@@ -227,7 +227,7 @@ def mutateSchedule(scheduleList):
     line = random.randrange(0, len(linedata))
     newList = deepcopy(scheduleList)
 
-    mutateLineSchedule(list(schedule.values())[line], linedata[line])
+    mutateLineSchedule(list(newList.values())[line], linedata[line])
     
     return newList
 
@@ -346,11 +346,13 @@ linedata, schedule = loadLines()
 score = simulateSchedule(schedule)
 print(score)
 
+iteration = 0
 while(True):
+    iteration += 1
     scheduleNew = mutateSchedule(schedule)
     scoreNew = simulateSchedule(scheduleNew)
 
-    print("Score: " + str(score) + " -> " + str(scoreNew))
+    print("Score @ " + str(iteration) + ": " + str(score) + " -> " + str(scoreNew) + "\r\n\r\n")
 
     if scoreNew < score:
         schedule = scheduleNew
