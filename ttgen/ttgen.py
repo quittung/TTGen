@@ -5,7 +5,7 @@ import os
 import random
 
 from copy import deepcopy
-import util.time3600 as t36
+import ttlib.time3600 as t36
 
 
 
@@ -420,6 +420,9 @@ def gmoSearch():
 
     
 # Loading infrastructure data
+print(os.path.dirname(__file__))
+os.chdir(os.path.dirname(__file__))
+
 sigdata = {}
 for fname in os.listdir("data/signals"):
     for sig in load_json("data/signals/" + fname):
