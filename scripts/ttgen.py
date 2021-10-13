@@ -1,7 +1,10 @@
+from copy import deepcopy
 import json
 import math
 import os
+import random
 
+from copy import deepcopy
 import util.time3600 as t36
 
 
@@ -180,8 +183,9 @@ def isBlocked(sigPath, time, blockTable):
 
     return False
 
-class ScheduleVariation:
-    """Contains all variables determining the exact determination of determined people. Yes."""
+class LineSchedule:
+    """Contains all data on what the line will do at what point"""
+
     def __init__(self, numberStops: int) -> None:
         self.startTime = 0
         self.startTrack = 0
@@ -190,6 +194,43 @@ class ScheduleVariation:
 
     def __repr__(self) -> str:
         return str(self.__dict__)
+
+        
+
+def mutateLineSchedule(ls: LineSchedule, line):
+    while True:
+        action = random.randint(0,3)
+        stop = random.randrange(0, len(ls.waitTime))
+        if action == 0:
+            # modify start time
+            ls.startTime = t36.timeShift(ls.startTime, timeStep * random.choice([-1,1]))
+            break
+        elif action == 1:
+            # modify start track
+            oldStart = ls.startTrack
+            ls.startTrack = random.randrange(0, len(line["routing"][0]))
+            if not oldStart == ls.startTrack:
+                break
+        elif action == 2:
+            # modify a random waitTime
+            ls.waitTime[stop] = max(0, ls.waitTime[stop] + timeStep * random.choice([-1,1]))
+            break
+        else:
+            # modify a random branching instruction
+            # mutation.branch[stop] =
+            pass 
+
+    return ls
+
+
+def mutateSchedule(scheduleList):
+    line = random.randrange(0, len(linedata))
+    newList = deepcopy(scheduleList)
+
+    mutateLineSchedule(list(schedule.values())[line], linedata[line])
+    
+    return newList
+
 
 def loadLines():
     line_raw = []
@@ -201,10 +242,11 @@ def loadLines():
     line_raw.sort(key = lambda l: l["prio"], reverse = True)
 
     for line in line_raw:
-        schedule[line["id"]] = ScheduleVariation(len(line["stops"]))
+        schedule[line["id"]] = LineSchedule(len(line["stops"]))
         line["routing"] = validateLine(line)
 
     return line_raw, schedule
+
 
 def generateBlocktable(timeStep):
     bt = {}
@@ -212,11 +254,17 @@ def generateBlocktable(timeStep):
         bt[t] = set()
     return bt
 
-def simulateSchedule(schedule, blockTable):
+
+def simulateSchedule(schedule):
+    blockTable = generateBlocktable(timeStep)
+
+    scheduleWait = 0
+    scheduleWaitNoBuffer = 0
+
     for line in linedata:
         print("processing line " + line["id"])
 
-        sLine: ScheduleVariation = schedule[line["id"]]
+        sLine: LineSchedule = schedule[line["id"]]
     
         time = sLine.startTime
         total_duration = 0
@@ -251,13 +299,13 @@ def simulateSchedule(schedule, blockTable):
             # waiting at stop
             waitTime = stop["stop_time"] + sLine.waitTime[i]
             while waitTime > 0:
+                # wait while advancing time and blocking
                 blockTable[timeSlot(time)].add("*|N_" + path[0][2:])
                 blockTable[timeSlot(time)].add("*|K_" + path[0][2:])
 
                 ts = min(waitTime, timeStep)
                 waitTime -= ts
                 time = t36.timeShift(time, ts)
-            # wait while advancing time and blocking
 
             # traveling to next stop
             travelData = travelPath(path, time, blockTable)
@@ -266,11 +314,19 @@ def simulateSchedule(schedule, blockTable):
             total_duration += travelData["duration"]
             total_wait += travelData["wait"]
             if not line["stops"][iNext]["buffer_stop"]:
-                total_wait_nobuffer += travelData["wait"]
+                total_wait_nobuffer += travelData["wait"] + sLine.waitTime[i]
 
 
         print(line["id"] + " -> " + str(total_duration) + "s, of that " + str(total_wait) + "s waiting for other trains, of that " + str(total_wait_nobuffer) + "s outside of buffer stations")
         print("")
+
+        scheduleWait += total_wait
+        scheduleWaitNoBuffer += total_wait_nobuffer
+
+    # score for how good this plan is, lower is better
+    # basically weights no buffer waits at twice the severity
+    score = scheduleWait + scheduleWaitNoBuffer
+    return score
 
 
 # Loading infrastructure data
@@ -285,10 +341,21 @@ timeStep = 15
 # loading and processing lines
 paths = {}
 linedata, schedule = loadLines()
-blockTable = generateBlocktable(timeStep)
 
 # generate schedule
-simulateSchedule(schedule, blockTable)
+score = simulateSchedule(schedule)
+print(score)
+
+while(True):
+    scheduleNew = mutateSchedule(schedule)
+    scoreNew = simulateSchedule(scheduleNew)
+
+    print("Score: " + str(score) + " -> " + str(scoreNew))
+
+    if scoreNew < score:
+        schedule = scheduleNew
+        score = scoreNew
+
 
 
     # TODO:
