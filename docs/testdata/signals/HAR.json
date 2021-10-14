@@ -1,0 +1,105 @@
+[
+  {
+    "id": "K_HAR01",
+    "next": [
+      {
+        "id": "HML_K_ERI05",
+        "ete": 0,
+        "blocks": []
+      }
+    ],
+    "reverse": null
+  },
+  {
+    "id": "K_HAR02",
+    "next": [
+      {
+        "id": "HML_K_ERI05",
+        "ete": 0,
+        "blocks": []
+      }
+    ],
+    "reverse": null
+  },
+  {
+    "id": "N_HAR01",
+    "next": [],
+    "reverse": "K_HAR01"
+  },
+  {
+    "id": "N_HAR02",
+    "next": [],
+    "reverse": "K_HAR02"
+  },
+  {
+    "id": "HML_N_HAR00",
+    "next": [
+      {
+        "id": "N_HAR01",
+        "ete": 0,
+        "blocks": []
+      },
+      {
+        "id": "N_HAR02",
+        "ete": 0,
+        "blocks": []
+      }
+    ],
+    "reverse": null
+  },
+  {
+    "id": "HML_K_ERI05",
+    "next": [
+      {
+        "id": "HML_K_ERI04",
+        "ete": 0,
+        "blocks": []
+      }
+    ],
+    "reverse": null
+  },
+  {
+    "id": "HML_K_ERI04",
+    "next": [
+      {
+        "id": "HML_K_ERI03",
+        "ete": 0,
+        "blocks": []
+      }
+    ],
+    "reverse": null
+  },
+  {
+    "id": "HML_K_ERI03",
+    "next": [
+      {
+        "id": "HML_K_ERI02",
+        "ete": 0,
+        "blocks": []
+      }
+    ],
+    "reverse": null
+  },
+  {
+    "id": "HML_K_ERI02",
+    "next": [
+      {
+        "id": "HML_K_ERI01",
+        "ete": 0,
+        "blocks": []
+      }
+    ],
+    "reverse": null
+  },
+  {
+    "id": "HML_K_ERI01",
+    "next": [
+      {
+        "id": "HML_K_ERI00",
+        "ete": 0,
+        "blocks": []
+      }
+    ],
+    "reverse": null
+  }
+]

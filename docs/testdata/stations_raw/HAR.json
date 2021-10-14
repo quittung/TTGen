@@ -1,0 +1,16 @@
+[
+  {
+    "direction": "K",
+    "route": "HML",
+    "station": "ERI",
+    "signals": "5",
+    "tracks_in": [
+      1,
+      2
+    ],
+    "tracks_out": [
+      1,
+      2
+    ]
+  }
+]

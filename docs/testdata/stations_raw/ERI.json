@@ -1,0 +1,30 @@
+[
+  {
+    "direction": "N",
+    "route": "HML",
+    "station": "HAR",
+    "signals": "5",
+    "tracks_in": [
+      1,
+      2,
+      3
+    ],
+    "tracks_out": [
+      3,
+      4,
+      2
+    ]
+  },
+  {
+    "direction": "K",
+    "route": "HML",
+    "station": "TRQ",
+    "signals": "5",
+    "tracks_in": [
+      4
+    ],
+    "tracks_out": [
+      3
+    ]
+  }
+]
