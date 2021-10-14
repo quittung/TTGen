@@ -1,9 +1,9 @@
 # TTGen
-Python scripts for generating Train Time Tables
-
 ## Introduction
-I am making this so I can generate schedules for my trains in Transport Fever 2. It only covers the planning part, the in game functionality is provided by TPF2-Timetables.
+I am making this so I can generate schedules for my trains in Transport Fever 2. It only covers the planning part, the in game functionality is provided by [TPF2-Timetables](https://github.com/IncredibleHannes/TPF2-Timetables).
+
 The scheduling algorithm is inspired by genetic search algorithms. It sort of works at the moment, but it's probably far from efficient.
+
 TTGen may or may not be useful for other use cases in the future, like other games or model trains. Nothing so far is specific to TF2. 
 
 ## Current State
