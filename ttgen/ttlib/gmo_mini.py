@@ -32,20 +32,38 @@ def gmoSearch(state: m_state.State):
     schedule_list = [schedule.generateRandomSchedule(state.linedata) for i in range(0, population)]
 
     iteration = 0
+    score_history = []
     while True:
-        iteration += 1
         scoredSchedules = {}
         for i in range(0, len(schedule_list)):
             state.schedule = schedule_list[i]
             scoredSchedules[i] = sim.simulate_state(state)
         
-        averageScore = sum(scoredSchedules.values()) / population
-        print("Score @ " + str(iteration) + ": " + str(averageScore))
-
+    
         ranking = list(range(0,population))
         ranking.sort(key = lambda i: scoredSchedules[i])
+
+
+        averageScore = sum(scoredSchedules.values()) / population
+        score_history.append(averageScore)
+        averageScore_rolling = rolling_avg(score_history)
+        print("Score @ " + str(iteration) + ": " + format(averageScore_rolling, '.1f'))
+        
+        # hook for debugging
+        if averageScore < 30:
+            print(scoredSchedules[ranking[0]])
+
+
         ranking = ranking[0:int(population / 2)]
         ranking = [schedule_list[i] for i in ranking]
         schedule_list = [smashSchedules(state.linedata, random.choice(ranking), random.choice(ranking)) for i in range(0, population)]
 
-    
+        iteration += 1
+
+def sample_last(data: list, lookback: int = 10):
+    lookback = min(lookback, len(data))
+    return data[-lookback:]
+
+def rolling_avg(data: list, lookback: int = 10):
+    sample = sample_last(data, lookback)
+    return sum(sample) / len(sample)
