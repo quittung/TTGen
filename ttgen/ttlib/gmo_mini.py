@@ -53,7 +53,7 @@ def disturb_schedule(linedata, s, energy = 1):
     return s
 
 
-def gmo_search(state: m_state.State):
+def gmo_search(state: m_state.State) -> m_state.State:
     """randomly mutates a population of schedules and uses evolutionary mechanisms to find a solution"""
     population = 25
 
@@ -62,29 +62,30 @@ def gmo_search(state: m_state.State):
     iteration = 0
     score_history = []
     while True:
+        # testing of fitness of current generation
         schedule_scores = {}
         for i in range(0, len(schedule_list)):
             state.schedule = schedule_list[i]
             schedule_scores[i] = sim.simulate_state(state)
         
-    
+
+        # evaluation
         ranking = list(range(0,population))
         ranking.sort(key = lambda i: schedule_scores[i])
-
 
         averageScore = sum(schedule_scores.values()) / population
         score_history.append(averageScore)
         averageScore_rolling = rolling_avg(score_history)
-        print("Score @ " + str(iteration) + ": " + format(averageScore_rolling, '.1f'))
         
-        # hook for debugging
+        print("Score @ " + str(iteration) + ": " + format(averageScore_rolling, '.1f'))
         if schedule_scores[ranking[0]] < 5:
             print(schedule_scores[ranking[0]])
             if schedule_scores[ranking[0]] == 0:
                 visualize_progress(score_history)
-                return schedule_list[ranking[0]]
+                state.schedule = schedule_list[ranking[0]]
+                return state
 
-
+        # creation of next generation
         ranking = ranking[0:int(population / 2)]
         ranking = [schedule_list[i] for i in ranking]
         schedule_list = [smash_schedules(state.linedata, rnd.choice(ranking), rnd.choice(ranking)) for i in range(0, population)]
