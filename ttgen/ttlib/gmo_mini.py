@@ -81,6 +81,7 @@ def gmo_search(state: m_state.State):
         if schedule_scores[ranking[0]] < 5:
             print(schedule_scores[ranking[0]])
             if schedule_scores[ranking[0]] == 0:
+                visualize_progress(score_history)
                 return schedule_list[ranking[0]]
 
 
@@ -99,3 +100,29 @@ def sample_last(data: list, lookback: int = 10):
 def rolling_avg(data: list, lookback: int = 10):
     sample = sample_last(data, lookback)
     return sum(sample) / len(sample)
+
+
+def visualize_progress(score_history):
+    import plotly.graph_objects as go
+    from plotly.subplots import make_subplots
+    import plotly.io as pio
+    pio.templates.default = "plotly_dark"
+
+    # Create figure with secondary y-axis
+    fig = make_subplots()
+
+    # Add traces
+    fig.add_trace(go.Scatter(y = score_history, name="score history"))
+
+    # Add figure title
+    fig.update_layout(
+        title_text="gmo seach"
+    )
+
+    # Set x-axis title
+    fig.update_xaxes(title_text="iteration")
+
+    # Set y-axes titles
+    fig.update_yaxes(title_text="average score")
+
+    fig.show()
