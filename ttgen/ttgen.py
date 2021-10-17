@@ -8,4 +8,4 @@ timeStep = 15 # FIXME: Actually apply these
 verbose = False
 
 state = m_state.State()
-gmo_mini.gmoSearch(state)
+gmo_mini.gmo_search(state)
