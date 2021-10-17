@@ -78,8 +78,10 @@ def gmo_search(state: m_state.State):
         print("Score @ " + str(iteration) + ": " + format(averageScore_rolling, '.1f'))
         
         # hook for debugging
-        if averageScore < 30:
-            print(scoredSchedules[ranking[0]])
+        if schedule_scores[ranking[0]] < 5:
+            print(schedule_scores[ranking[0]])
+            if schedule_scores[ranking[0]] == 0:
+                return schedule_list[ranking[0]]
 
 
         ranking = ranking[0:int(population / 2)]
