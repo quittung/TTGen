@@ -7,19 +7,35 @@ The scheduling algorithm is inspired by genetic search algorithms. It sort of wo
 TTGen may or may not be useful for other use cases in the future, like other games or model trains. Nothing so far is specific to TF2. 
 
 ## Current State
- - At the time of this update, the project is basically a proof of concept.
- - There is no usable UI.
- - The scheduler sort of works, but it still has lots of obvious flaws.
- - All data has to be transferred between TTGen and the game manually.
- - There is basically no documentation outside of the code.
- - The code is still very messy and undocumented.
+ - At the time of this update, the project is somewhere between a proof of concept and a very early alpha version
+ - There is no usable UI
+ - The scheduler sort of works, but it still has lots of obvious flaws
+ - All data has to be transferred between TTGen and the game manually
+ - There is basically no documentation outside of the code
+ - The code is still very messy
 
-## General Concepts (outdated)
+## How to use
+### Basic testing
+To try the script on sample data, follow the steps below. It contains 4 stations in a row and two lines.
+ - Copy the contents of docs/testdata/ to /data
+ - Run ttgen/ttgen.py
+ - Wait (usually just a few seconds)
+ - Look at the generated timetable at /data/timetables
+
+## General Concepts
 ### Data
- - Infrastructure data describing the track layout and signals is generated. This can be done manually with a generation tool (station_gen.py) and, hopefully in the future, direct export for sims like TF2.
- - Train routes are specified without specific platforms or departure times.
-
+ - Infrastructure data
+  - Location: data/signals/[station_id].json
+  - Description: Paths between signals and information about other paths they block
+  - Source: Manual creation or generation with ttgen/station_gen.py; TF2 export planned
+ - Line data
+  - Location: data/lines/[line_id].json
+  - Description: Name, frequency and stops of a line
+  - Source: Manual creation
+  
 ### Processing
- - Train routes are validated and a very basic first schedule is created.
- - Parameters such as exact routing and wait times are magically (i.e. I haven't figured that out yet) changed until the overall wait time of all trains outside of designated stations has been minimized.
- - The finished schedules are exported. Probably as text for now, maybe they can be exported directly into some sims in the future.
+ 1. A set of random schedules is generated based on the line data
+ 2. All schedules are simulated and ranked by the amount of time spent waiting outside of designated stops
+ 3. A new set of schedules is generated based on the better performing half, introducing some amount of random changes
+ 4. Go back to 2. until a solution has been found
+ 5. The best schedule is exported to data/timetables/[line_id].json
