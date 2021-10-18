@@ -102,9 +102,10 @@ def simulate_state(state: m_state.State):
 def wait_stop(wait_plan, wait_schedule, time, total_duration, blockTable, path):
     waitTime = wait_plan + wait_schedule
     while waitTime > 0:
-                # wait while advancing time and blocking
-        blockTable[t36.timeSlot(time, timeStep)].add("*|N_" + path[0][2:])
-        blockTable[t36.timeSlot(time, timeStep)].add("*|K_" + path[0][2:])
+        # wait while advancing time and blocking
+        time_slot = t36.timeSlot(time, timeStep)
+        blockTable[time_slot].add("*|N_" + path[0][2:])
+        blockTable[time_slot].add("*|K_" + path[0][2:])
 
         ts = min(waitTime, timeStep)
         waitTime -= ts
@@ -158,11 +159,12 @@ def travel(sigdata, path, time, total_duration, blockTable, block = True, wait =
 
 
 def isBlocked(sigPath, time, blockTable):
-    if sigPath in blockTable[t36.timeSlot(time, timeStep)]: return True
+    time_slot = t36.timeSlot(time, timeStep)
+    if sigPath in blockTable[time_slot]: return True
     
     depSig, arrSig =  sigPath.split("|")
-    if depSig + "|*" in blockTable[t36.timeSlot(time, timeStep)]: return True
-    if "*|" + arrSig in blockTable[t36.timeSlot(time, timeStep)]: return True
+    if depSig + "|*" in blockTable[time_slot]: return True
+    if "*|" + arrSig in blockTable[time_slot]: return True
 
     return False
 
