@@ -1,5 +1,5 @@
 import os
-from ttlib import state as m_state, gmo_mini
+from ttlib import state as m_state, gmo_mini, output
 
 
 
@@ -8,4 +8,5 @@ timeStep = 15 # FIXME: Actually apply these
 verbose = False
 
 state = m_state.State()
-gmo_mini.gmo_search(state)
+state = gmo_mini.gmo_search(state, False)
+output.dump(state)

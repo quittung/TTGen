@@ -8,19 +8,23 @@ class State:
     def __init__(self) -> None:
         self.sigdata = {}
         """contains all signals in a dictionary. key is signal id"""
-        for sig in fileops.load_json_dir(fileops.dirData + "signals"):
+        for sig in fileops.load_json_dir(fileops.data_dir + "signals"):
             self.sigdata[sig["id"]] = sig
 
 
         self.linedata = {}
         """contains all line data in a dictionary"""
-        for line in fileops.load_json_dir(fileops.dirData + "lines"):
+        for line in fileops.load_json_dir(fileops.data_dir + "lines"):
             self.linedata[line["id"]] = line
             line["routing"] = self.validateLine(line)
 
 
         self.schedule = schedule.generateRandomSchedule(self.linedata)
         """contains all decisions for all lines"""
+
+
+        self.timetable = {}
+        """contains final timetable after simulation"""
 
     
     def validateLine(self, line): 

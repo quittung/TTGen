@@ -2,7 +2,7 @@ import os, json
 
 
 
-dirData = "data/"
+data_dir = "data/"
 
 
 def setwd():
@@ -15,6 +15,18 @@ def setwd():
 
 # set constant working directory in project root. is this hacky or unwise?
 setwd()
+
+
+def exists(fname):
+    """checks if file exists"""
+    return os.path.exists(fname)
+
+
+def dump_json(obj, fname: str):
+    """dumps an object to a json file"""
+    if not os.path.exists(os.path.dirname(fname)): os.makedirs(os.path.dirname(fname))
+    with open(fname, 'w') as fobj:
+        json.dump(obj, fobj, indent = 2)
 
 
 def load_json(fname: str):

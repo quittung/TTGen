@@ -53,7 +53,7 @@ def disturb_schedule(linedata, s, energy = 1):
     return s
 
 
-def gmo_search(state: m_state.State) -> m_state.State:
+def gmo_search(state: m_state.State, visualize: bool = True) -> m_state.State:
     """randomly mutates a population of schedules and uses evolutionary mechanisms to find a solution"""
     population = 25
 
@@ -81,7 +81,7 @@ def gmo_search(state: m_state.State) -> m_state.State:
         if schedule_scores[ranking[0]] < 5:
             print(schedule_scores[ranking[0]])
             if schedule_scores[ranking[0]] == 0:
-                visualize_progress(score_history)
+                if visualize: visualize_progress(score_history)
                 state.schedule = schedule_list[ranking[0]]
                 return state
 
