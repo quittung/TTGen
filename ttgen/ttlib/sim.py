@@ -81,7 +81,16 @@ def simulate_state(state: m_state.State):
 
 
         timetable["duration"] = total_duration
+        
+        # correcting first arrival time
+        separation = line["separation"] * 60
+        """separation between trains on same route"""
+        cycle_duration = total_duration - total_duration % separation + separation
+        """time between visits of a specific train at a station"""
 
+        first_arrival = timetable["stops"][0]["arr"]
+        first_arrival = t36.timeShift(first_arrival, - cycle_duration)
+        timetable["stops"][0]["arr"] = first_arrival
 
         # old information, ignore
         # if verbose: print(line["id"] + " -> " + str(total_duration) + "s, of that " + str(wait_line_station) + "s waiting for other trains, of that " + str(wait_line_station_nobuffer) + "s outside of buffer stations")
