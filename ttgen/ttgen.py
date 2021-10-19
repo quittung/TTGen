@@ -1,6 +1,6 @@
 import os
-from ttlib import state as m_state, gmo_mini, output
 
+from ttlib import state as m_state, gmo_mini, timetable, ttgraph
 
 
 # settings
