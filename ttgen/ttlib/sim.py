@@ -5,12 +5,10 @@ from . import sigsearch
 from .simhelper import *
 
 
-
-verbose = False
 time_step = 15 # HACK
 
 
-def simulate_state(state: m_state.State):
+def simulate_state(state: m_state.State, verbose: bool = False):
     blockTable = generateBlocktable(time_step)
 
     conflict_schedule = Conflict()
@@ -51,7 +49,7 @@ def simulate_state(state: m_state.State):
 
             if i > 0:
                 wait_station = sLine.waitTime[i]
-                time, total_duration, block_station = wait_stop(stop["stop_time"], wait_station, time, total_duration, blockTable, path)
+                time, total_duration, block_station = wait_stop(stop["stop_time"], wait_station, time, total_duration, blockTable, path, verbose = verbose)
                 
                 conflict_stop.block_station = block_station
                 if line["stops"][i]["buffer_stop"]: # current stop is designated buffer stop
@@ -63,7 +61,7 @@ def simulate_state(state: m_state.State):
 
 
             # traveling to next stop
-            time, total_duration, block_travel = travel(state.sigdata, path, time, total_duration, blockTable)
+            time, total_duration, block_travel = travel(state.sigdata, path, time, total_duration, blockTable, verbose = verbose)
             
             conflict_stop.block_travel = block_travel
             timetable["stops"][iNext]["arr"] = time
@@ -85,7 +83,7 @@ def simulate_state(state: m_state.State):
 
         # blocking the first stop
         path = startSignal["next"][sLine.branch[0]]["path"] 
-        time, total_duration, block_station = wait_stop(0, first_wait, first_arr, total_duration, blockTable, path)
+        time, total_duration, block_station = wait_stop(0, first_wait, first_arr, total_duration, blockTable, path, verbose = verbose)
 
         # TODO: Remove duplicate code 
         conflict_line.block_station += block_station
@@ -105,7 +103,7 @@ def simulate_state(state: m_state.State):
     return score
 
 
-def wait_stop(wait_plan, wait_schedule, time, total_duration, block_table, path):
+def wait_stop(wait_plan, wait_schedule, time, total_duration, block_table, path, verbose: bool = False):
     waitTime = wait_plan + wait_schedule
     time_blocked = 0
 
@@ -123,7 +121,7 @@ def wait_stop(wait_plan, wait_schedule, time, total_duration, block_table, path)
     return time, total_duration, time_blocked
 
 
-def travel(sigdata, path, time, total_duration, block_table, block = True, wait = True):
+def travel(sigdata, path, time, total_duration, block_table, block = True, wait = True, verbose: bool = False):
     time_conflict = 0
     timeStart = time
 
