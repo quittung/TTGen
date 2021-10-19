@@ -81,7 +81,7 @@ def gmo_search(state: m_state.State, visualize: bool = True) -> m_state.State:
         state.schedule = schedule_list[ranking[0]]
         print("Score @ " + str(iteration) + ": " + format(averageScore_rolling, '.1f'))
 
-        if visualize and iteration % 100 == 0:
+        if visualize and iteration % 250 == 0:
             print("lowest score: " + str(schedule_scores[ranking[0]]))
             sim.simulate_state(state, True)
             show_timetable(state)
