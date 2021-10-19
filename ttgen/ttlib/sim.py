@@ -6,7 +6,7 @@ from . import sigsearch
 
 
 verbose = False
-timeStep = 15 # HACK
+time_step = 15 # HACK
 
 def time_add(time, duration, delta):
     time = t36.timeShift(time, delta)
@@ -15,12 +15,9 @@ def time_add(time, duration, delta):
     return time, duration
 
 def simulate_state(state: m_state.State):
-    blockTable = generateBlocktable(timeStep)
+    blockTable = generateBlocktable(time_step)
 
-    wait_schedule_station = 0
-    wait_schedule_travel = 0
-    wait_schedule_station_nobuffer = 0
-    wait_schedule_travel_nobuffer = 0
+    conflict_schedule = Conflict()
 
     for line in state.linedata.values():
         if verbose: print("processing line " + line["id"])
@@ -32,10 +29,7 @@ def simulate_state(state: m_state.State):
         time = sLine.startTime
         total_duration = 0
 
-        wait_line_station = 0
-        wait_line_travel = 0
-        wait_line_station_nobuffer = 0
-        wait_line_travel_nobuffer = 0
+        conflict_line = Conflict()
 
         # choose where to start
         # FIXME: why are the depSigs in a dict instead of a list?
@@ -47,6 +41,8 @@ def simulate_state(state: m_state.State):
             stop = line["stops"][i]
             path = startSignal["next"][sLine.branch[i]]["path"] 
 
+            conflict_stop = Conflict()
+
             # TODO: Review this
             if path[-1] in line["routing"][iNext]:
                 startSignal = line["routing"][iNext][path[-1]]
@@ -54,32 +50,33 @@ def simulate_state(state: m_state.State):
                 for s in line["routing"][iNext]:
                     if state.sigdata[s]["reverse"] == path[-1]:
                         startSignal = s
-        
-            # waiting for first departure
-            if i == 0:
-                time = wait_first_departure(time, blockTable, path)
 
             # waiting at stop
-            wait_station = sLine.waitTime[i]
-            time, total_duration = wait_stop(stop["stop_time"], wait_station, time, total_duration, blockTable, path)
+
+            if i > 0:
+                wait_station = sLine.waitTime[i]
+                time, total_duration, block_station = wait_stop(stop["stop_time"], wait_station, time, total_duration, blockTable, path)
+                
+                conflict_stop.block_station = block_station
+                if line["stops"][i]["buffer_stop"]: # current stop is designated buffer stop
+                    conflict_stop.wait_station_buffer = sLine.waitTime[i]
+                else:
+                    conflict_stop.wait_station_nobuffer = sLine.waitTime[i]
+
             timetable["stops"][i]["dep"] = time
 
+
             # traveling to next stop
-            time, total_duration, wait_travel = travel(state.sigdata, path, time, total_duration, blockTable)
+            time, total_duration, block_travel = travel(state.sigdata, path, time, total_duration, blockTable)
+            
+            conflict_stop.block_travel = block_travel
             timetable["stops"][iNext]["arr"] = time
 
-            # classifying wait time
-            wait_line_station += wait_travel + wait_station
-            if not line["stops"][i]["buffer_stop"]:
-                wait_line_station_nobuffer += wait_station
-            else:
-                wait_line_station += wait_station
-            if not line["stops"][iNext]["buffer_stop"]:
-                wait_line_travel_nobuffer += wait_travel
-            else:
-                wait_line_travel += wait_travel
+            # wrapping up
+            conflict_line += conflict_stop
+            
 
-
+        #TODO wait at first stop
         timetable["duration"] = total_duration
         
         # correcting first arrival time
@@ -96,79 +93,100 @@ def simulate_state(state: m_state.State):
         # if verbose: print(line["id"] + " -> " + str(total_duration) + "s, of that " + str(wait_line_station) + "s waiting for other trains, of that " + str(wait_line_station_nobuffer) + "s outside of buffer stations")
         # if verbose: print("")
 
-        wait_schedule_station += wait_line_station
-        wait_schedule_travel += wait_line_travel
-        wait_schedule_station_nobuffer += wait_line_station_nobuffer
-        wait_schedule_travel_nobuffer += wait_line_travel_nobuffer
+        # wrapping up
+        conflict_schedule += conflict_line
         
 
     # score for how good this plan is, lower is better
     # basically weights no buffer waits at twice the severity
-    score = wait_schedule_travel * 0.5 + wait_schedule_station_nobuffer + wait_schedule_travel_nobuffer * 3
+    score = conflict_schedule.wait_station_nobuffer * 0.5 + conflict_schedule.block_travel + conflict_schedule.block_station * 3
     return score
 
+class Conflict:
+    def __init__(self, ref = None) -> None:
+        self.wait_station_buffer: float = 0
+        self.wait_station_nobuffer: float = 0
+        self.block_station: float = 0
+        self.block_travel: float = 0
+        
+        if not ref == None:
+            self.wait_station_buffer = ref.wait_station_buffer
+            self.wait_station_nobuffer = ref.wait_station_nobuffer
+            self.block_station = ref.block_station
+            self.block_travel = ref.block_travel
+    
+    def __add__(self, other):
+        result = Conflict()
 
-def wait_stop(wait_plan, wait_schedule, time, total_duration, blockTable, path):
+        result.wait_station_buffer = self.wait_station_buffer + other.wait_station_buffer
+        result.wait_station_nobuffer = self.wait_station_nobuffer + other.wait_station_nobuffer
+        result.block_station = self.block_station + other.block_station 
+        result.block_travel = self.block_travel + other.block_travel 
+
+        return result
+
+    
+
+
+
+
+
+def wait_stop(wait_plan, wait_schedule, time, total_duration, block_table, path):
     waitTime = wait_plan + wait_schedule
+    time_blocked = 0
+
     while waitTime > 0:
         # wait while advancing time and blocking
-        time_slot = t36.timeSlot(time, timeStep)
-        blockTable[time_slot].add("*|N_" + path[0][2:])
-        blockTable[time_slot].add("*|K_" + path[0][2:])
+        time_slot = t36.timeSlot(time, time_step)
+        for direction in ["N", "K"]:
+            if block_path("*|" + direction + "_" + path[0][2:], time_slot, block_table):
+                time_blocked += time_step
 
-        ts = min(waitTime, timeStep)
+        ts = min(waitTime, time_step)
         waitTime -= ts
         time, total_duration = time_add(time, total_duration, ts)
-    return time, total_duration
+
+    return time, total_duration, time_blocked
 
 
-def wait_first_departure(time, blockTable, path):
-    while isBlocked("*|" + path[0], time, blockTable):
-        time = t36.timeShift(time, timeStep)
-    if time > 0:
-                    #sLine.startTime = time
-        if verbose: print("  can't start until " + t36.timeFormat(time))
-    return time
-
-
-def travel(sigdata, path, time, total_duration, blockTable, block = True, wait = True):
-    totalWait = 0
+def travel(sigdata, path, time, total_duration, block_table, block = True, wait = True):
+    time_conflict = 0
     timeStart = time
 
     for i in range(0, len(path) - 1):
         sigPath = path[i] + "|" + path[i + 1]
 
-        #waiting until signal path is no longer blocked
-        if wait:
-            waitDuration = 0
-            while isBlocked(sigPath, time, blockTable):
-                time, total_duration = time_add(time, total_duration, timeStep)
-                waitDuration += timeStep
-            if waitDuration > 0:
-                if verbose: print("  waiting at " + sigPath + " for " + str(waitDuration) + "s")
-                totalWait += waitDuration
-
         #traveling through signal path
-        spDuration = 45 #placeholder for calculation of travel time for signal path
+        time_path = 45 #placeholder for calculation of travel time for signal path
 
         #blocking current and related paths
         if block:
-            while spDuration > 0:
-                blockSlot = blockTable[t36.timeSlot(time, timeStep)]
-                blockSlot.add(sigPath)
-                [blockSlot.add(s) for s in sigsearch.sigpath_obj(sigdata, sigPath)["blocks"]]
+            while time_path > 0:
+                time_path_partial = min(time_path, time_step)
+                time_path -= time_path_partial
 
-                ts = min(spDuration, timeStep)
-                spDuration -= ts
-                time, total_duration = time_add(time, total_duration, ts)
+                blocklist = sigsearch.sigpath_obj(sigdata, sigPath)["blocks"] + [sigPath]
+
+                for path_to_block in blocklist:
+                    if block_path(path_to_block, time, block_table):
+                        time_conflict += time_path_partial
+
+                time, total_duration = time_add(time, total_duration, time_path_partial)
         else:
-            time, total_duration = time_add(time, total_duration, spDuration)
+            time, total_duration = time_add(time, total_duration, time_path)
 
-    return time, total_duration, totalWait
+    return time, total_duration, time_conflict
 
 
-def isBlocked(sigPath, time, blockTable):
-    time_slot = t36.timeSlot(time, timeStep)
+def block_path(path, time, block_table) -> bool:
+    """reserves a path and returns if there were any conflicts"""
+    time_slot = t36.timeSlot(time, time_step)
+    conflict = is_blocked(path, time_slot, block_table)
+    block_table[time_slot].add(path)
+
+    return conflict
+
+def is_blocked(sigPath, time_slot, blockTable):
     if sigPath in blockTable[time_slot]: return True
     
     depSig, arrSig =  sigPath.split("|")
