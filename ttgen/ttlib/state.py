@@ -19,7 +19,7 @@ class State:
             line["routing"] = self.validateLine(line)
 
 
-        self.schedule = schedule.generateRandomSchedule(self.linedata)
+        self.schedule = schedule.generate_schedule(self.linedata)
         """contains all decisions for all lines"""
 
 

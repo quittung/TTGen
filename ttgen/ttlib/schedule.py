@@ -76,8 +76,8 @@ def mutateLineSchedule(ls: LineSchedule, line):
     return ls
 
 
-def generateRandomSchedule(linedata):
+def generate_schedule(linedata, random = False):
     sr = {}
     for line in linedata.values():
-        sr[line["id"]] = LineSchedule(line, True)
+        sr[line["id"]] = LineSchedule(line, random)
     return sr

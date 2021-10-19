@@ -38,7 +38,7 @@ def mix_schedules(s1, s2, p = 0.5):
 def disturb_schedule(linedata, s, energy = 1):
     """less agressive randomization of schedule by modifying an existing one"""
     s = deepcopy(s)
-    sr = schedule.generateRandomSchedule(linedata)
+    sr = schedule.generate_schedule(linedata, True)
 
     rnd_pm = lambda: rnd.choice([-1,1])
 
@@ -57,7 +57,7 @@ def gmo_search(state: m_state.State, visualize: bool = True) -> m_state.State:
     """randomly mutates a population of schedules and uses evolutionary mechanisms to find a solution"""
     population = 25
 
-    schedule_list = [schedule.generateRandomSchedule(state.linedata) for i in range(0, population)]
+    schedule_list = [schedule.generate_schedule(state.linedata, True) for i in range(0, population)]
 
     iteration = 0
     score_history = []
