@@ -4,6 +4,10 @@ from . import fileops, state as m_state, time3600 as t36
 def dump(timetable):
     """writes complete timetable to file"""
     for l, tt_line in timetable.items():
+        for i in range(len(tt_line["stops"])):
+            tt_line["stops"][i]["arr"] = t36.timeFormat(tt_line["stops"][i]["arr"])
+            tt_line["stops"][i]["dep"] = t36.timeFormat(tt_line["stops"][i]["dep"])
+
         fileops.dump_json(tt_line, fileops.data_dir + "timetables/" + l + ".json")
 
         print(tt_line)
@@ -25,8 +29,8 @@ def collect_timetable(state: m_state.State, dump_file: bool = False):
             "trains": trains,
             "stops": [{
                 "id": stops[i]["id"],
-                "arr": t36.timeFormat(t["stops"][i]["arr"]),
-                "dep": t36.timeFormat(t["stops"][i]["dep"])
+                "arr": t["stops"][i]["arr"],
+                "dep": t["stops"][i]["dep"]
             } for i in range(len(t["stops"]))]
         }
 
