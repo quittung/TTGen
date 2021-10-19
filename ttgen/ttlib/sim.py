@@ -97,6 +97,10 @@ def simulate_state(state: m_state.State, verbose: bool = False):
         conflict_schedule += conflict_line
         
 
+    if verbose:
+    #    print(blockTable)
+        print(conflict_schedule)
+
     # score for how good this plan is, lower is better
     # basically weights no buffer waits at twice the severity
     score = conflict_schedule.wait_station_nobuffer * 0.5 + conflict_schedule.block_travel + conflict_schedule.block_station * 3
@@ -111,8 +115,10 @@ def wait_stop(wait_plan, wait_schedule, time, total_duration, block_table, path,
         # wait while advancing time and blocking
         time_slot = t36.timeSlot(time, time_step)
         for direction in ["N", "K"]:
-            if block_path("*|" + direction + "_" + path[0][2:], time_slot, block_table):
+            path_to_block = "*|" + direction + "_" + path[0][2:]
+            if block_path(path_to_block, time_slot, block_table):
                 time_blocked += time_step
+                if verbose: print("conflict: " + path_to_block)
 
         ts = min(waitTime, time_step)
         waitTime -= ts
@@ -142,6 +148,7 @@ def travel(sigdata, path, time, total_duration, block_table, block = True, wait 
                 for path_to_block in blocklist:
                     if block_path(path_to_block, time, block_table):
                         time_conflict += time_path_partial
+                        if verbose: print("conflict: " + path_to_block)
 
                 time, total_duration = time_add(time, total_duration, time_path_partial)
         else:

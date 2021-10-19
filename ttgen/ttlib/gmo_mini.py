@@ -77,12 +77,20 @@ def gmo_search(state: m_state.State, visualize: bool = True) -> m_state.State:
         score_history.append(averageScore)
         averageScore_rolling = rolling_avg(score_history)
         
+        
+        state.schedule = schedule_list[ranking[0]]
         print("Score @ " + str(iteration) + ": " + format(averageScore_rolling, '.1f'))
+
+        if visualize and iteration % 100 == 0:
+            print("lowest score: " + str(schedule_scores[ranking[0]]))
+            sim.simulate_state(state, True)
+            show_timetable(state)
+
+
         if schedule_scores[ranking[0]] < 5:
             print(schedule_scores[ranking[0]])
             if schedule_scores[ranking[0]] == 0:
                 if visualize: visualize_progress(score_history)
-                state.schedule = schedule_list[ranking[0]]
                 return state
 
         # creation of next generation
@@ -101,6 +109,12 @@ def sample_last(data: list, lookback: int = 10):
 def rolling_avg(data: list, lookback: int = 10):
     sample = sample_last(data, lookback)
     return sum(sample) / len(sample)
+
+
+def show_timetable(state):
+    from . import timetable, ttgraph
+    tt = timetable.collect_timetable(state)
+    ttgraph.graph(tt)
 
 
 def visualize_progress(score_history):
