@@ -72,24 +72,30 @@ def simulate_state(state: m_state.State):
             conflict_line += conflict_stop
             
 
-        #TODO wait at first stop
-        timetable["duration"] = total_duration
         
         # correcting first arrival time
-        separation = line["separation"] * 60
-        """separation between trains on same route"""
-        cycle_duration = total_duration - total_duration % separation + separation
-        """time between visits of a specific train at a station"""
+        separation = line["separation"] * 60 # separation between trains on same route
+        cycle_duration = total_duration - total_duration % separation + separation # time between visits of a specific train at a station
 
-        first_arrival = timetable["stops"][0]["arr"]
-        first_arrival = t36.timeShift(first_arrival, - cycle_duration)
-        timetable["stops"][0]["arr"] = first_arrival
+        first_dep = timetable["stops"][0]["dep"]
+        first_arr = timetable["stops"][0]["arr"]
+        first_arr = t36.timeShift(first_arr, - cycle_duration)
+        first_wait = t36.timeDiff(first_arr, first_dep)
+        timetable["stops"][0]["arr"] = first_arr
 
-        # old information, ignore
-        # if verbose: print(line["id"] + " -> " + str(total_duration) + "s, of that " + str(wait_line_station) + "s waiting for other trains, of that " + str(wait_line_station_nobuffer) + "s outside of buffer stations")
-        # if verbose: print("")
+        # blocking the first stop
+        path = startSignal["next"][sLine.branch[0]]["path"] 
+        time, total_duration, block_station = wait_stop(0, first_wait, first_arr, total_duration, blockTable, path)
+
+        # TODO: Remove duplicate code 
+        conflict_line.block_station += block_station
+        if line["stops"][0]["buffer_stop"]: # current stop is designated buffer stop
+            conflict_line.wait_station_buffer += sLine.waitTime[0]
+        else:
+            conflict_line.wait_station_nobuffer += sLine.waitTime[0]
 
         # wrapping up
+        timetable["duration"] = total_duration
         conflict_schedule += conflict_line
         
 
