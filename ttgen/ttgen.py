@@ -9,4 +9,4 @@ verbose = False
 
 state = m_state.State()
 state = gmo_mini.gmo_search(state, False)
-output.dump(state)
+timetable = output.collect_timetable(state, True)
