@@ -6,6 +6,16 @@ verbose = False
 time_step = 15 # HACK
 
 
+def block_path_recurring(path, time, separation, block_table):
+    hourly_deps = int(3600 / separation)
+    conflicts = 0
+
+    for i in range(hourly_deps):
+        if block_path(path, t36.timeShift(time, separation * i), block_table): conflicts += 1
+    
+    return conflicts
+
+
 def block_path(path, time, block_table) -> bool:
     """reserves a path and returns if there were any conflicts"""
     time_slot = t36.timeSlot(time, time_step)

@@ -19,6 +19,7 @@ def simulate_state(state: m_state.State, verbose: bool = False):
         sLine: m_sched.LineSchedule = state.schedule[line["id"]]
         timetable = {"stops": [{} for i in range(len(line["stops"]))]}
         state.timetable[line["id"]] = timetable
+        separation = line["separation"] * 60
     
         time = sLine.startTime
         total_duration = 0
@@ -49,7 +50,7 @@ def simulate_state(state: m_state.State, verbose: bool = False):
 
             if i > 0:
                 wait_station = sLine.waitTime[i]
-                time, total_duration, block_station = wait_stop(stop["stop_time"], wait_station, time, total_duration, blockTable, path, verbose = verbose)
+                time, total_duration, block_station = wait_stop(stop["stop_time"], wait_station, time, total_duration, separation, blockTable, path, verbose = verbose)
                 
                 conflict_stop.block_station = block_station
                 if line["stops"][i]["buffer_stop"]: # current stop is designated buffer stop
@@ -61,7 +62,7 @@ def simulate_state(state: m_state.State, verbose: bool = False):
 
 
             # traveling to next stop
-            time, total_duration, block_travel = travel(state.sigdata, path, time, total_duration, blockTable, verbose = verbose)
+            time, total_duration, block_travel = travel(state.sigdata, path, time, total_duration, separation, blockTable, verbose = verbose)
             
             conflict_stop.block_travel = block_travel
             timetable["stops"][iNext]["arr"] = time
@@ -83,7 +84,7 @@ def simulate_state(state: m_state.State, verbose: bool = False):
 
         # blocking the first stop
         path = startSignal["next"][sLine.branch[0]]["path"] 
-        time, total_duration, block_station = wait_stop(0, first_wait, first_arr, total_duration, blockTable, path, verbose = verbose)
+        time, total_duration, block_station = wait_stop(0, first_wait, first_arr, total_duration, separation, blockTable, path, verbose = verbose)
 
         # TODO: Remove duplicate code 
         conflict_line.block_station += block_station
@@ -107,7 +108,7 @@ def simulate_state(state: m_state.State, verbose: bool = False):
     return score
 
 
-def wait_stop(wait_plan, wait_schedule, time, total_duration, block_table, path, verbose: bool = False):
+def wait_stop(wait_plan, wait_schedule, time, total_duration, separation, block_table, path, verbose: bool = False):
     waitTime = wait_plan + wait_schedule
     time_blocked = 0
 
@@ -116,8 +117,9 @@ def wait_stop(wait_plan, wait_schedule, time, total_duration, block_table, path,
         time_slot = t36.timeSlot(time, time_step)
         for direction in ["N", "K"]:
             path_to_block = "*|" + direction + "_" + path[0][2:]
-            if block_path(path_to_block, time_slot, block_table):
-                time_blocked += time_step
+            conflicts = block_path_recurring(path_to_block, time_slot, separation, block_table)
+            if conflicts > 1:
+                time_blocked += time_step * conflicts
                 if verbose: print("conflict: " + path_to_block)
 
         ts = min(waitTime, time_step)
@@ -127,7 +129,7 @@ def wait_stop(wait_plan, wait_schedule, time, total_duration, block_table, path,
     return time, total_duration, time_blocked
 
 
-def travel(sigdata, path, time, total_duration, block_table, block = True, wait = True, verbose: bool = False):
+def travel(sigdata, path, time, total_duration, separation, block_table, block = True, wait = True, verbose: bool = False):
     time_conflict = 0
     timeStart = time
 
@@ -146,8 +148,9 @@ def travel(sigdata, path, time, total_duration, block_table, block = True, wait 
                 blocklist = sigsearch.sigpath_obj(sigdata, sigPath)["blocks"] + [sigPath]
 
                 for path_to_block in blocklist:
-                    if block_path(path_to_block, time, block_table):
-                        time_conflict += time_path_partial
+                    conflicts = block_path_recurring(path_to_block, time, separation, block_table)
+                    if conflicts > 1:
+                        time_conflict += time_path_partial * conflicts
                         if verbose: print("conflict: " + path_to_block)
 
                 time, total_duration = time_add(time, total_duration, time_path_partial)
