@@ -44,6 +44,15 @@ class Conflict:
             self.wait_station_nobuffer = ref.wait_station_nobuffer
             self.block_station = ref.block_station
             self.block_travel = ref.block_travel
+
+
+    def __repr__(self) -> str:
+        return self.__str__()
+
+
+    def __str__(self) -> str:
+        return str(self.__dict__)
+
     
     def __add__(self, other):
         result = Conflict()
