@@ -1,30 +1,44 @@
 import os
-from . import fileops, sigsearch, schedule
+from . import fileops, sigsearch, schedule as schd
 
 
 class State:
     """contains complete world state, including infrastructure, line templates and schedules"""
     
-    def __init__(self) -> None:
+    def __init__(self, template = None, schedule = None) -> None:
         self.sigdata = {}
         """contains all signals in a dictionary. key is signal id"""
-        for sig in fileops.load_json_dir(fileops.data_dir + "signals"):
-            self.sigdata[sig["id"]] = sig
-
+        if template == None:
+            for sig in fileops.load_json_dir(fileops.data_dir + "signals"):
+                self.sigdata[sig["id"]] = sig
+        else:
+            self.sigdata = template.sigdata
 
         self.linedata = {}
         """contains all line data in a dictionary"""
-        for line in fileops.load_json_dir(fileops.data_dir + "lines"):
-            self.linedata[line["id"]] = line
-            line["routing"] = self.validateLine(line)
+        if template == None:
+            for line in fileops.load_json_dir(fileops.data_dir + "lines"):
+                self.linedata[line["id"]] = line
+                line["routing"] = self.validateLine(line)
+        else:
+            self.linedata = template.linedata
 
 
-        self.schedule = schedule.generate_schedule(self.linedata)
+        self.schedule = None
         """contains all decisions for all lines"""
+        if schedule == None:
+            if template == None:
+                self.schedule = schd.generate_schedule(self.linedata)
+            else:
+                self.schedule = template.schedule
+        else:
+            self.schedule = schedule
 
 
         self.timetable = {}
         """contains final timetable after simulation"""
+        if not template == None:
+            self.timetable == template.timetable
 
     
     def validateLine(self, line): 

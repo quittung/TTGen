@@ -1,5 +1,7 @@
 from copy import deepcopy
 import random as rnd
+from multiprocessing.dummy import Pool as ThreadPool
+from time import perf_counter
 
 from . import schedule, sim, state as m_state, time3600 as t36
 
@@ -53,33 +55,43 @@ def disturb_schedule(linedata, s, energy = 1):
     return s
 
 
-def gmo_search(state: m_state.State, visualize: bool = True) -> m_state.State:
+def gmo_search(state_template: m_state.State, visualize: bool = True) -> m_state.State:
     """randomly mutates a population of schedules and uses evolutionary mechanisms to find a solution"""
     population = 25
 
-    schedule_list = [schedule.generate_schedule(state.linedata, True) for i in range(0, population)]
+    schedule_list = [schedule.generate_schedule(state_template.linedata, True) for i in range(0, population)]
+    pool = ThreadPool(4)
 
     iteration = 0
     score_history = []
     while True:
         # testing of fitness of current generation
-        schedule_scores = {}
+        start_time = perf_counter()
+
+        # old single thread code in case it's better lol
+        """schedule_scores = []
         for i in range(0, len(schedule_list)):
-            state.schedule = schedule_list[i]
-            schedule_scores[i] = sim.simulate_state(state)
-        
+            state_template.schedule = schedule_list[i]
+            schedule_scores.append(sim.simulate_state(state_template))"""
+
+        state_list = [m_state.State(state_template, s) for s in schedule_list]
+        schedule_scores = pool.map(sim.simulate_state, state_list, 5)
+
+        duration = perf_counter() - start_time
 
         # evaluation
         ranking = list(range(0,population))
         ranking.sort(key = lambda i: schedule_scores[i])
 
-        averageScore = sum(schedule_scores.values()) / population
+        averageScore = sum(schedule_scores) / population
         score_history.append(averageScore)
         averageScore_rolling = rolling_avg(score_history)
         
         
-        state.schedule = schedule_list[ranking[0]]
-        print("Score @ " + str(iteration) + ": " + format(averageScore_rolling, '.1f'))
+        state = m_state.State(state_template, schedule_list[ranking[0]])
+        message = "Score @ " + str(iteration) + ": " + format(averageScore_rolling, '.1f')
+        message += "\r\n" + "Calc time: " + format(duration, '.4f') + "\r\n"
+        print(message)
 
         if visualize and iteration % 250 == 0:
             print("lowest score: " + str(schedule_scores[ranking[0]]))
