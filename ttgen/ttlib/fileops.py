@@ -7,7 +7,7 @@ data_dir = "data/"
 
 def setwd():
     """sets working directory to project root"""
-    wd = __file__
+    wd = os.path.abspath(__file__)
     # each root/ttgen/ttlib/fileops.py -> remove last three
     for i in range (0, 3):
         wd = os.path.dirname(wd)
