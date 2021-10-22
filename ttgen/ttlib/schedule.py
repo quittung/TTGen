@@ -18,7 +18,7 @@ class LineSchedule:
             self.startTime = random.randrange(0, 3600)
             self.startTrack = random.randrange(0, len(line["routing"][0]))
             self.waitTime = [random.randrange(0, 300) for i in range(0, numberStops)]
-            self.branch = [0] * numberStops
+            self.branch = [self.random_branch(i) for i in range(numberStops)]
         else:
             self.startTime = 0
             self.startTrack = 0
@@ -48,6 +48,12 @@ class LineSchedule:
         pass """
         # TODO: idk, is this necessary?
         pass
+
+
+    def random_branch(self, stop: int):
+        next_stop = (stop + 1) % len(self.line["stops"])
+        return random.randrange(0, len(self.line["routing"][next_stop]))
+
 
 
 def mutateLineSchedule(ls: LineSchedule, line):

@@ -45,7 +45,7 @@ class State:
         """
         makes sure a line's route is actually connected and returns a list of possible routes
         """
-        # find connections between stops
+        # find all possible connections between stops
         connections = []
         for i in range(0, len(line["stops"])):
             iNext = (i + 1) % len(line["stops"])
@@ -56,43 +56,47 @@ class State:
             else:
                 connections.append(connection)
 
-        # make sure the line arrives at a track it can depart from & vise versa
+        # reject all signals not connected to next and last stop
         for i in range(len(connections), -1, -1):
-            iCurr = i % len(connections)
-            iNext = (i + 1) % len(connections)
-            validArrivals = [s for s in connections[iNext]]
+            i_curr = i % len(connections)
+            i_next = (i + 1) % len(connections)
 
-            targetedArrivals = []
-            invalidDepartures = []
-            for depSig in connections[iCurr]:
-                invalidArrivals = []
-                for arrSig in connections[iCurr][depSig]["next"]:
-                    if arrSig in validArrivals:
-                        targetedArrivals.append(arrSig)
-                    elif self.sigdata[arrSig]["reverse"] in validArrivals:
-                        targetedArrivals.append(self.sigdata[arrSig]["reverse"])
-                    else:
-                        invalidArrivals.append(arrSig)
+            # look at the arrival signals listed for each of the current stops departure signal
+            # if the all connect over the same track, they should have the same arrival signals
+            # if not, there are multiple ways to reach the next stop
+            arrivals_list = [dep_sig["next"] for dep_sig in connections[i_curr].values()]
+            arrivals_reachable = set([signal for arrivals in arrivals_list for signal in arrivals])
+            for arrivals in arrivals_list:
+                if set(arrivals) != arrivals_reachable:
+                    print("It looks like there is more than one way to reach stop number " + str(i))
+                    print("This kind of infrastructure is not supported at this point")
+                    return
 
-                [connections[iCurr][depSig]["next"].remove(s) for s in invalidArrivals]
-                if len(connections[iCurr][depSig]["next"]) == 0:
-                    invalidDepartures.append(depSig)
 
-            # remove departure signals that cannot reach the next station    
-            [connections[iCurr].pop(s) for s in invalidDepartures]
-            if len(connections[iCurr]) == 0: return None
+            # next check if that set of common arrival signals corresponds with the departure signals of the next one
+            # if some arrival signals are missing, then those are going to another station
+            # remove them from the list of arrival signals
+            arrivals_reachable_reverse = [self.sigdata[arr_sig]["reverse"] for arr_sig in arrivals_reachable]
+            arrivals_reachable_reverse = [arr_sig for arr_sig in arrivals_reachable_reverse if arr_sig != None]
+            arrivals_reachable.update(arrivals_reachable_reverse)
 
-            # remove arrival signals that cannot be reached by the last station
-            [connections[iNext].pop(s) for s in list(set(validArrivals).difference(targetedArrivals))]
+            arrivals_invalid = [arr_sig for arr_sig in connections[i_next] if not arr_sig in arrivals_reachable]
+            [connections[i_next].pop(sig) for sig in arrivals_invalid]
+
+
+            # since you remove options based on the next stop
+            # meaning information propagates backwards
+            # it would make sense to iterate backwards as well
+
+        
 
         # generate paths
-        for i in range(0, len(connections)):
-            iNext = (i + 1) % len(connections)
-            for depSig in connections[i]:
-                connections[i][depSig]["next"] = [{
-                        "id": depSig,
-                        "path": sigsearch.search(self.sigdata, self.sigdata[depSig], lambda s: s == arrSig)["path"]
-                    } for arrSig in connections[i][depSig]["next"]]
+        for stop in connections:
+            for dep_sig in stop.values():
+                dep_sig["next"] = [{
+                        "id": arr_sig,
+                        "path": sigsearch.search(self.sigdata, self.sigdata[dep_sig["id"]], lambda s: s == arr_sig)["path"]
+                    } for arr_sig in dep_sig["next"]]
 
 
         return connections

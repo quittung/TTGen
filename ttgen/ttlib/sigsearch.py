@@ -23,19 +23,20 @@ def search(sigdata, pos, ontgt, length = 0, maxlength = 1000):
 
 
 def findTracks(sigdata, sta_start, sta_end): 
+    """finds all combinations of starting and departure signals that connect two stations"""
     startSignals = getStationSignals(sigdata, sta_start)
     endSignals = getStationSignals(sigdata, sta_end)
 
     connections = {}
     for ss in startSignals:
-        connections[ss] = {"id": ss, "next": []}
+        connection = {"id": ss, "next": []}
         
         for es in endSignals:
             if search(sigdata, sigdata[ss], lambda s: s == es) != None:
-                connections[ss]["next"].append(es)
+                connection["next"].append(es)
         
-        if len(connections[ss]["next"]) == 0:
-            connections.pop(ss)
+        if len(connection["next"]) != 0:
+            connections[ss] = connection
     
     return connections
 

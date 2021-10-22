@@ -59,9 +59,11 @@ At this point we should be able to choose any destination signal from our list, 
           <4   ---  <4   ---  <4   -------------  <4
 ```
 
-Let's assume changing from the express track to the metro track is not possible between `B` and `D`.
-How do I know if it is okay to choose to stop at `B3` if I need to go to `E`?
-If changing tracks between `C` and `D` is possible, does it matter if I stop at `B1` or `B3`?
-Ideally I'd like to be able to say "at stop `X` go to track `Y` of the next station", without affecting my choices at other stops.
+Let's assume changing from the express track to the metro track is not possible after `B`. In that case it would be a simple split after `B`, which is already detected. 
 
-I'm not even sure what I'm really asking here. I definitely need some time to think this over.
+But what if it is possible to change just before `D`? In that case there are two valid routing options: 
+ - Go from either track at `B1` via `C1` to `D1`
+ - Go from either track at `B3` via `C3` to `D1`
+
+For now I'd prefer to be able to change any part of the routing info without causing a chain reaction. The format should be "at signal `X` chose then `n`th option out of the target signal list. But if it's possible to go to both `B1` and `B2`, the list of next signals would change. 
+I'd have to generate and maintain a tree of branching decisions instead of just a list. I don't want to deal with that complexity yet, so I choose not to support infrastructure configurations like that at this point.

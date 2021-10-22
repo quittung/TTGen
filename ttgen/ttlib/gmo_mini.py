@@ -37,22 +37,21 @@ def mix_schedules(s1, s2, p = 0.5):
     return s
 
 
-def disturb_schedule(linedata, s, energy = 1):
+def disturb_schedule(linedata, sched_in, energy = 1):
     """less agressive randomization of schedule by modifying an existing one"""
-    s = deepcopy(s)
-    sr = schedule.generate_schedule(linedata, True)
+    sched_out = deepcopy(sched_in)
+    sched_random = schedule.generate_schedule(linedata, True)
 
     rnd_pm = lambda: rnd.choice([-1,1])
 
-    for l in s:
-        s[l].startTime = t36.timeShift(s[l].startTime, rnd_pm() * 10 * energy)
-        s[l].startTrack = sr[l].startTrack
-        for i in range(0, len(s[l].waitTime)):
-            s[l].waitTime[i] = max(0, s[l].waitTime[i] + rnd_pm() * 10 * energy)
-        for i in range(0, len(s[l].branch)):
-            s[l].branch[i] = sr[l].branch[i]
+    for line in sched_out:
+        sched_out[line].startTime = t36.timeShift(sched_out[line].startTime, rnd_pm() * 10 * energy)
+        sched_out[line].startTrack = sched_random[line].startTrack
+        for i in range(0, len(sched_out[line].waitTime)):
+            sched_out[line].waitTime[i] = max(0, sched_out[line].waitTime[i] + rnd_pm() * 10 * energy)
+        sched_out[line].branch = [sched_out[line].random_branch(i) for i in range(len(sched_out[line].branch))]
 
-    return s
+    return sched_out
 
 
 def gmo_search(state_template: m_state.State, visualize: bool = True) -> m_state.State:
@@ -68,14 +67,9 @@ def gmo_search(state_template: m_state.State, visualize: bool = True) -> m_state
         # testing of fitness of current generation
         start_time = perf_counter()
 
-        # old single thread code in case it's better lol
-        """schedule_scores = []
-        for i in range(0, len(schedule_list)):
-            state_template.schedule = schedule_list[i]
-            schedule_scores.append(sim.simulate_state(state_template))"""
-
         state_list = [m_state.State(state_template, s) for s in schedule_list]
-        schedule_scores = pool.map(sim.simulate_state, state_list, 5)
+        #schedule_scores = list(map(sim.simulate_state, state_list)) # single thread version for debugging
+        schedule_scores = pool.map(sim.simulate_state, state_list, 5) # multi thread version for better performance
 
         duration = perf_counter() - start_time
 
@@ -90,7 +84,7 @@ def gmo_search(state_template: m_state.State, visualize: bool = True) -> m_state
         
         state = m_state.State(state_template, schedule_list[ranking[0]])
         message = "Score @ " + str(iteration) + ": " + format(averageScore_rolling, '.1f')
-        message += "\r\n" + "Calc time: " + format(duration, '.4f') + "\r\n"
+        #message += "\r\n" + "Calc time: " + format(duration, '.4f') + "\r\n"
         print(message)
 
         if visualize and iteration % 250 == 0:
