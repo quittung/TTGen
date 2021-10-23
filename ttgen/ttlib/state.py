@@ -61,32 +61,44 @@ class State:
             i_curr = i % len(connections)
             i_next = (i + 1) % len(connections)
 
-            # look at the arrival signals listed for each of the current stops departure signal
-            # if the all connect over the same track, they should have the same arrival signals
+            # look at the target signals listed for each of the current stops departure signal
+            # if the all connect over the same track, they should have the same target signals
             # if not, there are multiple ways to reach the next stop
-            arrivals_list = [dep_sig["next"] for dep_sig in connections[i_curr].values()]
-            arrivals_reachable = set([signal for arrivals in arrivals_list for signal in arrivals])
-            for arrivals in arrivals_list:
-                if set(arrivals) != arrivals_reachable:
+            next_list = [dep_sig["next"] for dep_sig in connections[i_curr].values()]
+            targets_set = set([signal for arrivals in next_list for signal in arrivals])
+            for arrivals in next_list:
+                if set(arrivals) != targets_set:
                     print("It looks like there is more than one way to reach stop number " + str(i))
                     print("This kind of infrastructure is not supported at this point")
                     return
 
 
-            # next check if that set of common arrival signals corresponds with the departure signals of the next one
-            # if some arrival signals are missing, then those are going to another station
-            # remove them from the list of arrival signals
-            arrivals_reachable_reverse = [self.sigdata[arr_sig]["reverse"] for arr_sig in arrivals_reachable]
-            arrivals_reachable_reverse = [arr_sig for arr_sig in arrivals_reachable_reverse if arr_sig != None]
-            arrivals_reachable.update(arrivals_reachable_reverse)
+            # next check for differences between the reachable targets and available arrivals at the next stop
+            # first remove all arrival signals that are not targeted
+            targets_list_reverse = self.get_reverse_signals(targets_set)
+            targets_list_combined = list(targets_set) + targets_list_reverse
+            arrivals_dict: dict = connections[i_next]
+            arrivals_list = list(arrivals_dict.keys())
+            arrivals_list_reverse = self.get_reverse_signals(arrivals_list)
+            arrivals_list_combined = arrivals_list + arrivals_list_reverse
 
-            arrivals_invalid = [arr_sig for arr_sig in connections[i_next] if not arr_sig in arrivals_reachable]
-            [connections[i_next].pop(sig) for sig in arrivals_invalid]
+            # find all arrivals that are not targeted
+            arrivals_untargeted = [s for s in arrivals_list if not s in targets_list_combined]
+            # remove those from the arrival dict
+            if len(arrivals_untargeted) > 0:
+                [arrivals_dict.pop(s) for s in arrivals_untargeted]
 
+            # find all targeted signals that do not have an available arrival signal
+            # those signals are on tracks that are dead ends or go to another station
+            targets_invalid = [s for s in targets_set if not s in arrivals_list_combined]
+            # go through the departure signals and remove those targets from their next list
+            if len(targets_invalid) > 0:
+                for dep_sig in connections[i_curr].values():
+                    [dep_sig["next"].remove(s) for s in targets_invalid if s in dep_sig["next"]]
 
             # since you remove options based on the next stop
-            # meaning information propagates backwards
-            # it would make sense to iterate backwards as well
+            # information propagates backwards
+            # so iterate backwards as well
 
         
 
@@ -100,3 +112,16 @@ class State:
 
 
         return connections
+
+    def get_reverse_signals(self, signal_list):
+        # not useful for incomplete station data or terminus stations
+        # arrivals_reachable_reverse = [self.sigdata[arr_sig]["reverse"] for arr_sig in targets_reachable]
+        # arrivals_reachable_reverse = [arr_sig for arr_sig in arrivals_reachable_reverse if arr_sig != None]
+
+        reverse_list = []
+        for signal in signal_list:
+            signal_reverse = "N" if signal[0] == "K" else "K"
+            signal_reverse += signal[1:]
+            reverse_list.append(signal_reverse)
+            
+        return reverse_list
