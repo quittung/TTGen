@@ -11,7 +11,7 @@ time_step = 15 # HACK
 def simulate_state(state: m_state.State, verbose: bool = False):
     blockTable = generateBlocktable(time_step)
 
-    conflict_schedule = Conflict()
+    stats_schedule = SimStats()
 
     for line in state.linedata.values():
         if verbose: print("processing line " + line["id"])
@@ -24,7 +24,7 @@ def simulate_state(state: m_state.State, verbose: bool = False):
         time = sLine.startTime
         total_duration = 0
 
-        conflict_line = Conflict()
+        stats_line = SimStats()
 
         for i_stop in range(0, len(line["stops"])):
             i_next = (i_stop + 1) % len(line["stops"])
@@ -34,7 +34,7 @@ def simulate_state(state: m_state.State, verbose: bool = False):
             stop = line["stops"][i_stop]
             path = start_signal["next"][sLine.branch[i_stop]]["path"] 
 
-            conflict_stop = Conflict()
+            stats_stop = SimStats()
 
             # waiting at stop
             if i_stop > 0:
@@ -46,11 +46,11 @@ def simulate_state(state: m_state.State, verbose: bool = False):
                 wait_station = sLine.waitTime[i_stop]
                 time, total_duration, block_station = wait_stop(stop["stop_time"], wait_station, time, total_duration, separation, blockTable, path, verbose = verbose)
                 
-                conflict_stop.block_station = block_station
+                stats_stop.block_station = block_station
                 if line["stops"][i_stop]["buffer_stop"]: # current stop is designated buffer stop
-                    conflict_stop.wait_station_buffer = sLine.waitTime[i_stop]
+                    stats_stop.wait_station_buffer = sLine.waitTime[i_stop]
                 else:
-                    conflict_stop.wait_station_nobuffer = sLine.waitTime[i_stop]
+                    stats_stop.wait_station_nobuffer = sLine.waitTime[i_stop]
 
             timetable["stops"][i_stop]["dep"] = time
 
@@ -58,11 +58,11 @@ def simulate_state(state: m_state.State, verbose: bool = False):
             # traveling to next stop
             time, total_duration, block_travel = travel(state.sigdata, path, time, total_duration, separation, blockTable, verbose = verbose)
             
-            conflict_stop.block_travel = block_travel
+            stats_stop.block_travel = block_travel
             timetable["stops"][i_next]["arr"] = time
 
             # wrapping up
-            conflict_line += conflict_stop
+            stats_line += stats_stop
             
 
         
@@ -82,25 +82,22 @@ def simulate_state(state: m_state.State, verbose: bool = False):
         time, total_duration, block_station = wait_stop(0, first_wait, first_arr, total_duration, separation, blockTable, path, verbose = verbose)
 
         # TODO: Remove duplicate code 
-        conflict_line.block_station += block_station
+        stats_line.block_station += block_station
         if line["stops"][0]["buffer_stop"]: # current stop is designated buffer stop
-            conflict_line.wait_station_buffer += sLine.waitTime[0]
+            stats_line.wait_station_buffer += sLine.waitTime[0]
         else:
-            conflict_line.wait_station_nobuffer += sLine.waitTime[0]
+            stats_line.wait_station_nobuffer += sLine.waitTime[0]
 
         # wrapping up
         timetable["duration"] = total_duration
-        conflict_schedule += conflict_line
+        stats_schedule += stats_line
         
 
     if verbose:
     #    print(blockTable)
-        print(conflict_schedule)
+        print(stats_schedule)
 
-    # score for how good this plan is, lower is better
-    # basically weights no buffer waits at twice the severity
-    score = conflict_schedule.wait_station_nobuffer * 0 + conflict_schedule.block_travel + conflict_schedule.block_station * 3
-    return score
+    return stats_schedule
 
 def get_start_sig(line: dict, sched_line: m_sched.LineSchedule, i_stop):
     """select start signal from branching data and target signals of last stop"""

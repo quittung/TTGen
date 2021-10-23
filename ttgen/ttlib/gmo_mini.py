@@ -4,8 +4,12 @@ from multiprocessing.dummy import Pool as ThreadPool
 from time import perf_counter
 
 from . import schedule, sim, state as m_state, time3600 as t36
+from .simhelper import SimStats
 
-
+default_scoring = SimStats(
+    block_travel=1,
+    block_station=3
+)
 
 def smash_schedules(linedata, s1, s2, pr = 0.02):
     """mixes two schedules with a chance of random mutation"""
@@ -54,11 +58,10 @@ def disturb_schedule(linedata, sched_in, energy = 1):
     return sched_out
 
 
-def gmo_search(state_template: m_state.State, visualize: bool = True) -> m_state.State:
+def gmo_search(state_template: m_state.State, pop_size: int = 25, max_iter: int = 5000, scoring: SimStats = default_scoring, visualize: bool = True) -> m_state.State:
     """randomly mutates a population of schedules and uses evolutionary mechanisms to find a solution"""
-    population = 25
 
-    schedule_list = [schedule.generate_schedule(state_template.linedata, True) for i in range(0, population)]
+    schedule_list = [schedule.generate_schedule(state_template.linedata, True) for i in range(0, pop_size)]
     pool = ThreadPool(4)
 
     iteration = 0
@@ -68,16 +71,17 @@ def gmo_search(state_template: m_state.State, visualize: bool = True) -> m_state
         start_time = perf_counter()
 
         state_list = [m_state.State(state_template, s) for s in schedule_list]
-        #schedule_scores = list(map(sim.simulate_state, state_list)) # single thread version for debugging
-        schedule_scores = pool.map(sim.simulate_state, state_list, 5) # multi thread version for better performance
+        #schedule_stats = list(map(sim.simulate_state, state_list)) # single thread version for debugging
+        schedule_stats = pool.map(sim.simulate_state, state_list, 5) # multi thread version for better performance
+        schedule_scores = [s * scoring for s in  schedule_stats]
 
         duration = perf_counter() - start_time
 
         # evaluation
-        ranking = list(range(0,population))
+        ranking = list(range(0,pop_size))
         ranking.sort(key = lambda i: schedule_scores[i])
 
-        averageScore = sum(schedule_scores) / population
+        averageScore = sum(schedule_scores) / pop_size
         score_history.append(averageScore)
         averageScore_rolling = rolling_avg(score_history)
         
@@ -93,16 +97,19 @@ def gmo_search(state_template: m_state.State, visualize: bool = True) -> m_state
             show_timetable(state)
 
 
-        if schedule_scores[ranking[0]] < 5:
+        # terminate search if conditions are met
+        if (max_iter != -1 and iteration >= max_iter # max iterations reached
+            or schedule_scores[ranking[0]] == 0):    # perfect solution found
+
             print(schedule_scores[ranking[0]])
-            if schedule_scores[ranking[0]] == 0:
-                if visualize: visualize_progress(score_history)
-                return state
+            if visualize: visualize_progress(score_history)
+            return state
+
 
         # creation of next generation
-        ranking = ranking[0:int(population / 2)]
+        ranking = ranking[0:int(max(pop_size / 3, min(pop_size, 5)))]
         ranking = [schedule_list[i] for i in ranking]
-        schedule_list = [smash_schedules(state.linedata, rnd.choice(ranking), rnd.choice(ranking)) for i in range(0, population)]
+        schedule_list = [smash_schedules(state.linedata, rnd.choice(ranking), rnd.choice(ranking)) for i in range(0, pop_size)]
 
         iteration += 1
 

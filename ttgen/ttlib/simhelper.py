@@ -1,5 +1,5 @@
 from . import time3600 as t36
-
+from dataclasses import dataclass
 
 
 verbose = False
@@ -60,38 +60,35 @@ def generateBlocktable(timeStep):
         bt[t] = set()
     return bt
 
-
-class Conflict:
-    def __init__(self, ref = None) -> None:
-        self.wait_station_buffer: float = 0
-        self.wait_station_nobuffer: float = 0
-        self.block_station: float = 0
-        self.block_travel: float = 0
-        
-        if not ref == None:
-            self.wait_station_buffer = ref.wait_station_buffer
-            self.wait_station_nobuffer = ref.wait_station_nobuffer
-            self.block_station = ref.block_station
-            self.block_travel = ref.block_travel
-
-
-    def __repr__(self) -> str:
-        return self.__str__()
-
-
-    def __str__(self) -> str:
-        return str(self.__dict__)
-
+@dataclass
+class SimStats:
+    wait_station_buffer: float = 0
+    wait_station_nobuffer: float = 0
+    block_station: float = 0
+    block_travel: float = 0
     
     def __add__(self, other):
-        result = Conflict()
+        result = SimStats()
+        self_dict = self.__dict__
+        other_dict = other.__dict__
+        result_dict = result.__dict__
 
-        result.wait_station_buffer = self.wait_station_buffer + other.wait_station_buffer
-        result.wait_station_nobuffer = self.wait_station_nobuffer + other.wait_station_nobuffer
-        result.block_station = self.block_station + other.block_station 
-        result.block_travel = self.block_travel + other.block_travel 
+        for k in self_dict:
+            result_dict[k] = self_dict[k] + other_dict[k]
 
         return result
+
+    def __mul__(self, other):
+        result = 0
+        self_dict = self.__dict__
+        other_dict = other.__dict__
+
+        for k in self_dict:
+            result += self_dict[k] * other_dict[k]
+
+        return result
+
+    __rmul__ = __mul__
     
 
 def time_add(time, duration, delta):
