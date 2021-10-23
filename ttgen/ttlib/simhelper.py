@@ -6,20 +6,21 @@ verbose = False
 time_step = 15 # HACK
 
 
-def block_path_recurring(path, time, separation, block_table):
+def block_path_recurring(path, time, separation, block_table, verbose = False):
     hourly_deps = int(3600 / separation)
     conflicts = 0
 
     for i in range(hourly_deps):
-        if block_path(path, t36.timeShift(time, separation * i), block_table): conflicts += 1
+        if block_path(path, t36.timeShift(time, separation * i), block_table, verbose): 
+            conflicts += 1
     
     return conflicts
 
 
-def block_path(path, time, block_table) -> bool:
+def block_path(path, time, block_table, verbose = False) -> bool:
     """reserves a path and returns if there were any conflicts"""
     time_slot = t36.timeSlot(time, time_step)
-    conflict = is_blocked(path, time_slot, block_table)
+    conflict = is_blocked_verbose(path, time_slot, block_table, verbose)
     block_table[time_slot].add(path)
 
     return conflict
@@ -34,6 +35,24 @@ def is_blocked(sigPath, time_slot, blockTable):
 
     return False
 
+
+def is_blocked_verbose(sigPath, time_slot, blockTable, verbose = True):
+    if sigPath in blockTable[time_slot]: 
+        if verbose:
+            print("conflict: " + sigPath + " at " + t36.timeFormat(time_slot) + " with itself")
+        return True
+    
+    depSig, arrSig =  sigPath.split("|")
+    if depSig + "|*" in blockTable[time_slot]: 
+        if verbose:
+            print("conflict: " + sigPath + " at " + t36.timeFormat(time_slot) + " with end signal")
+        return True
+    if "*|" + arrSig in blockTable[time_slot]: 
+        if verbose:
+            print("conflict: " + sigPath + " at " + t36.timeFormat(time_slot) + " with target signal")
+        return True
+
+    return False
 
 def generateBlocktable(timeStep):
     bt = {}

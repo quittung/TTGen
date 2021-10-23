@@ -26,46 +26,40 @@ def simulate_state(state: m_state.State, verbose: bool = False):
 
         conflict_line = Conflict()
 
-        # choose where to start
-        # FIXME: why are the depSigs in a dict instead of a list?
-        startSignal = list(line["routing"][0].values())[sLine.startTrack]
+        for i_stop in range(0, len(line["stops"])):
+            i_next = (i_stop + 1) % len(line["stops"])
 
-        for i in range(0, len(line["stops"])):
-            iNext = (i + 1) % len(line["stops"])
+            start_signal = get_start_sig(line, sLine, i_stop)
 
-            stop = line["stops"][i]
-            path = startSignal["next"][sLine.branch[i]]["path"] 
+            stop = line["stops"][i_stop]
+            path = start_signal["next"][sLine.branch[i_stop]]["path"] 
 
             conflict_stop = Conflict()
 
-            # TODO: Review this
-            if path[-1] in line["routing"][iNext]:
-                startSignal = line["routing"][iNext][path[-1]]
-            else:
-                for s in line["routing"][iNext]:
-                    if state.sigdata[s]["reverse"] == path[-1]:
-                        startSignal = s
-
             # waiting at stop
+            if i_stop > 0:
+                if verbose and stop["id"] == "ACT":
+                    print("somthing")
+                if verbose: 
+                    print("stopping at stop " + stop["id"] + " with index " + str(i_stop))
 
-            if i > 0:
-                wait_station = sLine.waitTime[i]
+                wait_station = sLine.waitTime[i_stop]
                 time, total_duration, block_station = wait_stop(stop["stop_time"], wait_station, time, total_duration, separation, blockTable, path, verbose = verbose)
                 
                 conflict_stop.block_station = block_station
-                if line["stops"][i]["buffer_stop"]: # current stop is designated buffer stop
-                    conflict_stop.wait_station_buffer = sLine.waitTime[i]
+                if line["stops"][i_stop]["buffer_stop"]: # current stop is designated buffer stop
+                    conflict_stop.wait_station_buffer = sLine.waitTime[i_stop]
                 else:
-                    conflict_stop.wait_station_nobuffer = sLine.waitTime[i]
+                    conflict_stop.wait_station_nobuffer = sLine.waitTime[i_stop]
 
-            timetable["stops"][i]["dep"] = time
+            timetable["stops"][i_stop]["dep"] = time
 
 
             # traveling to next stop
             time, total_duration, block_travel = travel(state.sigdata, path, time, total_duration, separation, blockTable, verbose = verbose)
             
             conflict_stop.block_travel = block_travel
-            timetable["stops"][iNext]["arr"] = time
+            timetable["stops"][i_next]["arr"] = time
 
             # wrapping up
             conflict_line += conflict_stop
@@ -83,7 +77,8 @@ def simulate_state(state: m_state.State, verbose: bool = False):
         timetable["stops"][0]["arr"] = first_arr
 
         # blocking the first stop
-        path = startSignal["next"][sLine.branch[0]]["path"] 
+        start_signal = get_start_sig(line, sLine, len(line["stops"]) - 1)
+        path = start_signal["next"][sLine.branch[0]]["path"] 
         time, total_duration, block_station = wait_stop(0, first_wait, first_arr, total_duration, separation, blockTable, path, verbose = verbose)
 
         # TODO: Remove duplicate code 
@@ -104,8 +99,25 @@ def simulate_state(state: m_state.State, verbose: bool = False):
 
     # score for how good this plan is, lower is better
     # basically weights no buffer waits at twice the severity
-    score = conflict_schedule.wait_station_nobuffer * 0.5 + conflict_schedule.block_travel + conflict_schedule.block_station * 3
+    score = conflict_schedule.wait_station_nobuffer * 0 + conflict_schedule.block_travel + conflict_schedule.block_station * 3
     return score
+
+def get_start_sig(line: dict, sched_line: m_sched.LineSchedule, i_stop):
+    """select start signal from branching data and target signals of last stop"""
+    i_prev = (i_stop - 1) % len(line["stops"])
+
+    target_signals = list(line["routing"][i_prev].values())[0]["next"]
+    start_signal_str: str = target_signals[sched_line.branch[i_prev]]["id"]
+
+    if not start_signal_str in line["routing"][i_stop]:
+        start_signal_str_reverse = "N" if start_signal_str[0] == "K" else "K"
+        start_signal_str_reverse += start_signal_str[1:]
+        if start_signal_str_reverse in line["routing"][i_stop]:
+            start_signal_str = start_signal_str_reverse
+        else:
+            return None
+
+    return line["routing"][i_stop][start_signal_str]
 
 
 def wait_stop(wait_plan, wait_schedule, time, total_duration, separation, block_table, path, verbose: bool = False):
@@ -117,10 +129,9 @@ def wait_stop(wait_plan, wait_schedule, time, total_duration, separation, block_
         time_slot = t36.timeSlot(time, time_step)
         for direction in ["N", "K"]:
             path_to_block = "*|" + direction + "_" + path[0][2:]
-            conflicts = block_path_recurring(path_to_block, time_slot, separation, block_table)
+            conflicts = block_path_recurring(path_to_block, time_slot, separation, block_table, verbose)
             if conflicts > 1:
                 time_blocked += time_step * conflicts
-                if verbose: print("conflict: " + path_to_block)
 
         ts = min(waitTime, time_step)
         waitTime -= ts
@@ -148,10 +159,9 @@ def travel(sigdata, path, time, total_duration, separation, block_table, block =
                 blocklist = sigsearch.sigpath_obj(sigdata, sigPath)["blocks"] + [sigPath]
 
                 for path_to_block in blocklist:
-                    conflicts = block_path_recurring(path_to_block, time, separation, block_table)
+                    conflicts = block_path_recurring(path_to_block, time, separation, block_table, verbose)
                     if conflicts > 1:
                         time_conflict += time_path_partial * conflicts
-                        if verbose: print("conflict: " + path_to_block)
 
                 time, total_duration = time_add(time, total_duration, time_path_partial)
         else:
