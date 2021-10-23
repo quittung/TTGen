@@ -1,8 +1,10 @@
 import math
+from copy import deepcopy
 from . import fileops, state as m_state, time3600 as t36
 
 def dump(timetable):
     """writes complete timetable to file"""
+    timetable = deepcopy(timetable)
     for l, tt_line in timetable.items():
         for i in range(len(tt_line["stops"])):
             tt_line["stops"][i]["arr"] = t36.timeFormat(tt_line["stops"][i]["arr"])
