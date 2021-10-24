@@ -62,7 +62,7 @@ def gmo_search(state_template: m_state.State, pop_size: int = 25, survival = 0.5
     """randomly mutates a population of schedules and uses evolutionary mechanisms to find a solution"""
 
     schedule_list = [schedule.generate_schedule(state_template.linedata, True) for i in range(0, pop_size)]
-    pool = ThreadPool(4)
+    pool = ThreadPool()
 
     iteration = 0
     stats = statistics.Statistics()
@@ -71,8 +71,8 @@ def gmo_search(state_template: m_state.State, pop_size: int = 25, survival = 0.5
         start_time = perf_counter()
 
         state_list = [m_state.State(state_template, s) for s in schedule_list]
-        #schedule_stats = list(map(sim.simulate_state, state_list)) # single thread version for debugging
-        schedule_stats = pool.map(sim.simulate_state, state_list, 5) # multi thread version for better performance
+        schedule_stats = list(map(sim.simulate_state, state_list)) # single thread version for debugging
+        #schedule_stats: list[SimStats] = pool.map(sim.simulate_state, state_list) # multi thread version for better performance
         schedule_scores = [s * scoring for s in  schedule_stats]
 
         stats.log("sim_time", perf_counter() - start_time)
@@ -88,20 +88,21 @@ def gmo_search(state_template: m_state.State, pop_size: int = 25, survival = 0.5
         stats.log("score_pop", score_average)
         averageScore_rolling = stats.rolling_avg("score_pop")
         stats.log("score_pop_rol", averageScore_rolling)
-        score_trend = stats.trend("score")
+        score_trend = stats.trend("score", 50)
         stats.log("score_trend", score_trend)
 
         stag_staleness = score_best / score_average
         stats.log("stag_staleness", stag_staleness)
 
-        stats.log_dict(schedule_stats[ranking[0]].__dict__)
+        stats_best = schedule_stats[ranking[0]]
+        stats.log_dict(stats_best.__dict__)
         
         state = m_state.State(state_template, schedule_list[ranking[0]])
         message = "Score @ " + str(iteration) + ": " + format(averageScore_rolling, '.1f') + ", " + format(score_average, '.1f')
         #message += "\r\n" + "Calc time: " + format(duration, '.4f') + "\r\n"
         print(message)
 
-        if iteration % 100 == 0 and iteration != 0:
+        if iteration % 500 == 0 and iteration != 0:
             print("lowest score: " + str(schedule_scores[ranking[0]]))
             sim.simulate_state(state, True)
             stats.plot()
@@ -109,13 +110,18 @@ def gmo_search(state_template: m_state.State, pop_size: int = 25, survival = 0.5
 
 
         # terminate search if conditions are met
-        if (max_iter != -1 and iteration >= max_iter # max iterations reached
-            or schedule_scores[ranking[0]] == 0):    # perfect solution found
+        no_conflicts = stats_best.block_station == 0 and stats_best.block_travel == 0
+
+
+        if (max_iter != -1 and iteration >= max_iter         # max iterations reached
+            or schedule_scores[ranking[0]] == 0              # perfect solution found
+            or (no_conflicts and abs(score_trend) < 0.001)): # acceptable solution and no progress
 
             print(schedule_scores[ranking[0]])
             if visualize or True: 
+                sim.simulate_state(state, True)
                 stats.plot()
-                show_timetable(state)
+                #show_timetable(state)
             return state
 
 
