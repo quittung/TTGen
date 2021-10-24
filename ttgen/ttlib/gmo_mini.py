@@ -3,7 +3,7 @@ import random as rnd
 from multiprocessing.dummy import Pool as ThreadPool
 from time import perf_counter
 
-from . import schedule, sim, state as m_state, time3600 as t36
+from . import schedule, sim, state as m_state, time3600 as t36, statistics
 from .simhelper import SimStats
 
 default_scoring = SimStats(
@@ -11,12 +11,12 @@ default_scoring = SimStats(
     block_station=3
 )
 
-def smash_schedules(linedata, s1, s2, pr = 0.02):
+def smash_schedules(linedata, s1, s2, pr = 0.02, related: bool = True):
     """mixes two schedules with a chance of random mutation"""
     s = mix_schedules(s1, s2, 0.5)
 
     #sr = schedule.generateRandomSchedule(linedata)
-    sr = disturb_schedule(linedata, s)
+    sr = disturb_schedule(linedata, s) if related else schedule.generate_schedule(linedata, True)
     s = mix_schedules(sr, s, pr)
     
     return s
@@ -58,14 +58,14 @@ def disturb_schedule(linedata, sched_in, energy = 1):
     return sched_out
 
 
-def gmo_search(state_template: m_state.State, pop_size: int = 25, max_iter: int = 5000, scoring: SimStats = default_scoring, visualize: bool = True) -> m_state.State:
+def gmo_search(state_template: m_state.State, pop_size: int = 25, survival = 0.5, max_iter: int = 5000, scoring: SimStats = default_scoring, visualize: bool = True) -> m_state.State:
     """randomly mutates a population of schedules and uses evolutionary mechanisms to find a solution"""
 
     schedule_list = [schedule.generate_schedule(state_template.linedata, True) for i in range(0, pop_size)]
     pool = ThreadPool(4)
 
     iteration = 0
-    score_history = []
+    stats = statistics.Statistics()
     while True:
         # testing of fitness of current generation
         start_time = perf_counter()
@@ -75,25 +75,36 @@ def gmo_search(state_template: m_state.State, pop_size: int = 25, max_iter: int 
         schedule_stats = pool.map(sim.simulate_state, state_list, 5) # multi thread version for better performance
         schedule_scores = [s * scoring for s in  schedule_stats]
 
-        duration = perf_counter() - start_time
+        stats.log("sim_time", perf_counter() - start_time)
 
         # evaluation
         ranking = list(range(0,pop_size))
         ranking.sort(key = lambda i: schedule_scores[i])
 
-        averageScore = sum(schedule_scores) / pop_size
-        score_history.append(averageScore)
-        averageScore_rolling = rolling_avg(score_history)
-        
+        # statistics
+        score_best = schedule_scores[ranking[0]]
+        stats.log("score", score_best)
+        score_average = sum(schedule_scores) / pop_size
+        stats.log("score_pop", score_average)
+        averageScore_rolling = stats.rolling_avg("score_pop")
+        stats.log("score_pop_rol", averageScore_rolling)
+        score_trend = stats.trend("score")
+        stats.log("score_trend", score_trend)
+
+        stag_staleness = score_best / score_average
+        stats.log("stag_staleness", stag_staleness)
+
+        stats.log_dict(schedule_stats[ranking[0]].__dict__)
         
         state = m_state.State(state_template, schedule_list[ranking[0]])
-        message = "Score @ " + str(iteration) + ": " + format(averageScore_rolling, '.1f')
+        message = "Score @ " + str(iteration) + ": " + format(averageScore_rolling, '.1f') + ", " + format(score_average, '.1f')
         #message += "\r\n" + "Calc time: " + format(duration, '.4f') + "\r\n"
         print(message)
 
-        if visualize and iteration % 250 == 0:
+        if iteration % 100 == 0 and iteration != 0:
             print("lowest score: " + str(schedule_scores[ranking[0]]))
             sim.simulate_state(state, True)
+            stats.plot()
             show_timetable(state)
 
 
@@ -102,14 +113,30 @@ def gmo_search(state_template: m_state.State, pop_size: int = 25, max_iter: int 
             or schedule_scores[ranking[0]] == 0):    # perfect solution found
 
             print(schedule_scores[ranking[0]])
-            if visualize: visualize_progress(score_history)
+            if visualize or True: 
+                stats.plot()
+                show_timetable(state)
             return state
 
 
         # creation of next generation
-        ranking = ranking[0:int(max(pop_size / 3, min(pop_size, 5)))]
+        ranking = ranking[0:int(max(pop_size * survival, min(pop_size, 5)))]
         ranking = [schedule_list[i] for i in ranking]
-        schedule_list = [smash_schedules(state.linedata, rnd.choice(ranking), rnd.choice(ranking)) for i in range(0, pop_size)]
+
+        smash = lambda n, randomness = 0.02, related = True: [smash_schedules(state.linedata, rnd.choice(ranking), rnd.choice(ranking), pr = randomness, related = related) for i in range(n)]
+        
+        stag_staleness_avg = stats.rolling_avg("stag_staleness")
+
+
+        if (score_trend > -0.025):
+            if stag_staleness_avg > 0.975:
+                print("Stale gene pool ({:.1f}%) detected in generation {}, introducing randomness.".format(stag_staleness_avg * 100, iteration))
+                schedule_list = smash(pop_size, 0.05, False)
+            else:
+                print("Progress slowing down in generation {}, increasing mutation.".format(iteration))
+                schedule_list = smash(pop_size, 0.02, True)
+        else:
+            schedule_list = smash(pop_size)
 
         iteration += 1
 
@@ -133,8 +160,6 @@ def show_timetable(state):
 def visualize_progress(score_history):
     import plotly.graph_objects as go
     from plotly.subplots import make_subplots
-    import plotly.io as pio
-    pio.templates.default = "plotly_dark"
 
     # Create figure with secondary y-axis
     fig = make_subplots()
@@ -144,7 +169,8 @@ def visualize_progress(score_history):
 
     # Add figure title
     fig.update_layout(
-        title_text="gmo seach"
+        title_text="gmo seach",
+        theme="plotly_dark"
     )
 
     # Set x-axis title
