@@ -3,6 +3,8 @@ from plotly.subplots import make_subplots
 import plotly.io as pio
 import random
 
+import datetime
+
 pio.templates.default = "plotly_dark"
 
 
@@ -46,8 +48,11 @@ def graph(timetable): # HACK everything about this, especially hard coding line 
             line_tracks += line_tracks
 
 
+        today = datetime.datetime.now()
+        today -= datetime.timedelta(hours = today.hour, minutes = today.minute, seconds = today.second, microseconds = today.microsecond)
+
         for i in range(line_trains):
-            line_timing_variation = [t + i * line_separation for t in line_timing]
+            line_timing_variation = [today + datetime.timedelta(seconds = t + i * line_separation) for t in line_timing]
             fig.add_trace(go.Scatter(   x = line_stations, 
                                         y = line_timing_variation, 
                                         name = l["id"], 
@@ -67,7 +72,7 @@ def graph(timetable): # HACK everything about this, especially hard coding line 
 
     # Set y-axes titles
     fig.update_yaxes(title_text="time (s)")
-    fig.update_yaxes(range = [3600*2, 3600*3])
+    fig.update_yaxes(range = [today + datetime.timedelta(seconds = 3600*2), today + datetime.timedelta(seconds = 3600*3)])
 
 
     fig.show()
