@@ -124,25 +124,17 @@ def wait_stop(wait_plan, wait_schedule, time, total_duration, separation, block_
     waitTime = wait_plan + wait_schedule
     time_blocked = 0
 
-    while waitTime > 0:
-        # wait while advancing time and blocking
-        time_slot = t36.timeSlot(time, time_step)
-        for direction in ["N", "K"]:
-            path_to_block = "*|" + direction + "_" + path[0][2:]
-            conflicts = block_path_recurring(path_to_block, time_slot, separation, block_table, verbose)
-            if conflicts > 1:
-                time_blocked += time_step * conflicts
+    for direction in ["N", "K"]:
+        path_to_block = "*|" + direction + "_" + path[0][2:]
+        time_blocked += block_path_recurring_timespan(path_to_block, time, waitTime, separation, block_table, verbose)
 
-        ts = min(waitTime, time_step)
-        waitTime -= ts
-        time, total_duration = time_add(time, total_duration, ts)
+    time, total_duration = time_add(time, total_duration, waitTime)
 
     return time, total_duration, time_blocked
 
 
 def travel(sigdata, path, time, total_duration, separation, block_table, block = True, wait = True, verbose: bool = False):
     time_conflict = 0
-    timeStart = time
 
     for i in range(0, len(path) - 1):
         sigPath = path[i] + "|" + path[i + 1]
@@ -152,19 +144,11 @@ def travel(sigdata, path, time, total_duration, separation, block_table, block =
 
         #blocking current and related paths
         if block:
-            while time_path > 0:
-                time_path_partial = min(time_path, time_step)
-                time_path -= time_path_partial
+            blocklist = sigsearch.sigpath_obj(sigdata, sigPath)["blocks"] + [sigPath]
 
-                blocklist = sigsearch.sigpath_obj(sigdata, sigPath)["blocks"] + [sigPath]
+            for path_to_block in blocklist:
+                time_conflict += block_path_recurring_timespan(path_to_block, time, time_path, separation, block_table, verbose)
 
-                for path_to_block in blocklist:
-                    conflicts = block_path_recurring(path_to_block, time, separation, block_table, verbose)
-                    if conflicts > 1:
-                        time_conflict += time_path_partial * conflicts
-
-                time, total_duration = time_add(time, total_duration, time_path_partial)
-        else:
-            time, total_duration = time_add(time, total_duration, time_path)
+        time, total_duration = time_add(time, total_duration, time_path)
 
     return time, total_duration, time_conflict

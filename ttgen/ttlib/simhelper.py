@@ -6,6 +6,28 @@ verbose = False
 time_step = 15 # HACK
 
 
+def block_path_recurring_timespan(path, time_start, time_span, separation, block_table, verbose = False):
+    """blocks a signal path for a specified time span for all trains on a service, returns time in conflict"""
+    conflict_time = 0
+
+    time = time_start
+    time_slot_old = -1
+
+    while time_span > 0:
+        time_slot = t36.timeSlot(time, time_step)
+        if time_slot != time_slot_old:
+            conflicts = block_path_recurring(path, time, separation, block_table, verbose)
+        time_slot_old = time_slot
+
+        time_split = min(time_span, time_step)
+        time_span -= time_split
+        time += time_split
+
+        conflict_time += conflicts * time_split
+
+    return conflict_time
+
+
 def block_path_recurring(path, time, separation, block_table, verbose = False):
     hourly_deps = int(3600 / separation)
     conflicts = 0
