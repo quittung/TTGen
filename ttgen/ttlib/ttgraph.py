@@ -23,11 +23,15 @@ def graph(timetable): # HACK everything about this, especially hard coding line 
 
         line_stations = []
         line_timing = []
+        line_tracks = []
         for s in l["stops"]:
             line_stations.append(s["id"])
             line_timing.append(s["arr"])
             line_stations.append(s["id"])
             line_timing.append(s["dep"])
+
+            for _ in range(2):
+                line_tracks.append(s["track"])
 
         # removing time wrap for better plotting
         for i in range(1, len(line_timing)):
@@ -35,15 +39,22 @@ def graph(timetable): # HACK everything about this, especially hard coding line 
                 line_timing[i] += 3600
 
         
-        # extend timing by two cycles
-        for i in range(1, 2):
+        # extend timing by three cycles
+        for i in range(1, 4):
             line_stations += line_stations
             line_timing += [t +  cycle_duration * i for t in line_timing]
+            line_tracks += line_tracks
 
 
         for i in range(line_trains):
             line_timing_variation = [t + i * line_separation for t in line_timing]
-            fig.add_trace(go.Scatter(x = line_stations, y = line_timing_variation, name = l["id"], line=dict(color=line_color)))
+            fig.add_trace(go.Scatter(   x = line_stations, 
+                                        y = line_timing_variation, 
+                                        name = l["id"], 
+                                        line=dict(color=line_color),
+                                        customdata=line_tracks,
+                                        hovertemplate='track: %{customdata}'
+                                    ))
 
     # Add figure title
     fig.update_layout(
@@ -56,7 +67,7 @@ def graph(timetable): # HACK everything about this, especially hard coding line 
 
     # Set y-axes titles
     fig.update_yaxes(title_text="time (s)")
-    fig.update_yaxes(range = [3600, 7200])
+    fig.update_yaxes(range = [3600*2, 3600*3])
 
 
     fig.show()

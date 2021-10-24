@@ -22,6 +22,9 @@ def collect_timetable(state: m_state.State, dump_file: bool = False):
 
     for l, t in state.timetable.items():
         stops = state.linedata[l]["stops"]
+        routing = state.linedata[l]["routing"]
+        branching = state.schedule[l].branch
+
         separation = state.linedata[l]["separation"]
         trains = math.ceil(t["duration"] / (separation * 60))
 
@@ -31,6 +34,7 @@ def collect_timetable(state: m_state.State, dump_file: bool = False):
             "trains": trains,
             "stops": [{
                 "id": stops[i]["id"],
+                "track": int(list(routing[i].keys())[branching[(i - 1) % len(stops)]][-2:]),
                 "arr": t["stops"][i]["arr"],
                 "dep": t["stops"][i]["dep"]
             } for i in range(len(t["stops"]))]
