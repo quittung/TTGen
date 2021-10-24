@@ -8,15 +8,17 @@ from .simhelper import SimStats
 
 default_scoring = SimStats(
     block_travel=1,
-    block_station=3
+    block_station=1,
+    wait_station_nobuffer=1/15,
+    wait_station_buffer=1/15/15
 )
 
-def smash_schedules(linedata, s1, s2, pr = 0.02, related: bool = True):
+def smash_schedules(linedata, s1, s2, pr = 0.02, related: bool = True, energy = 1):
     """mixes two schedules with a chance of random mutation"""
     s = mix_schedules(s1, s2, 0.5)
 
     #sr = schedule.generateRandomSchedule(linedata)
-    sr = disturb_schedule(linedata, s) if related else schedule.generate_schedule(linedata, True)
+    sr = disturb_schedule(linedata, s, energy) if related else schedule.generate_schedule(linedata, True)
     s = mix_schedules(sr, s, pr)
     
     return s
@@ -46,13 +48,13 @@ def disturb_schedule(linedata, sched_in, energy = 1):
     sched_out = deepcopy(sched_in)
     sched_random = schedule.generate_schedule(linedata, True)
 
-    rnd_pm = lambda: rnd.choice([-1,1,2])
+    rnd_time = lambda: rnd.randint(-energy, 2 * energy) * 15
 
     for line in sched_out:
-        sched_out[line].startTime = t36.timeShift(sched_out[line].startTime, rnd_pm() * 15 * energy)
+        sched_out[line].startTime = t36.timeShift(sched_out[line].startTime, rnd_time())
         sched_out[line].startTrack = sched_random[line].startTrack
         for i in range(0, len(sched_out[line].waitTime)):
-            sched_out[line].waitTime[i] = max(0, sched_out[line].waitTime[i] + rnd_pm() * 15 * energy)
+            sched_out[line].waitTime[i] = max(0, sched_out[line].waitTime[i] + rnd_time())
         sched_out[line].branch = [sched_out[line].random_branch(i) for i in range(len(sched_out[line].branch))]
 
     return sched_out
@@ -129,18 +131,19 @@ def gmo_search(state_template: m_state.State, pop_size: int = 25, survival = 0.5
         ranking = ranking[0:int(max(pop_size * survival, min(pop_size, 5)))]
         ranking = [schedule_list[i] for i in ranking]
 
-        smash = lambda n, randomness = 0.02, related = True: [smash_schedules(state.linedata, rnd.choice(ranking), rnd.choice(ranking), pr = randomness, related = related) for i in range(n)]
+        smash = lambda n, randomness = 0.02, related = True, energy = 1: [smash_schedules(state.linedata, rnd.choice(ranking), rnd.choice(ranking), randomness, related, energy) for i in range(n)]
         
         stag_staleness_avg = stats.rolling_avg("stag_staleness")
 
 
-        if (score_trend > -0.025):
+        if (score_trend > -0.025 and not no_conflicts):
             if stag_staleness_avg > 0.975:
-                print("Stale gene pool ({:.1f}%) detected in generation {}, introducing randomness.".format(stag_staleness_avg * 100, iteration))
-                schedule_list = smash(pop_size, 0.05, False)
+                #print("Stale gene pool ({:.1f}%) detected in generation {}, introducing randomness.".format(stag_staleness_avg * 100, iteration))
+                #schedule_list = smash(pop_size, 0.05, False)
+                schedule_list = smash(pop_size, 0.05, True, 30)
             else:
-                print("Progress slowing down in generation {}, increasing mutation.".format(iteration))
-                schedule_list = smash(pop_size, 0.02, True)
+                #print("Progress slowing down in generation {}, increasing mutation.".format(iteration))
+                schedule_list = smash(pop_size, 0.05, True, 6)
         else:
             schedule_list = smash(pop_size)
 
