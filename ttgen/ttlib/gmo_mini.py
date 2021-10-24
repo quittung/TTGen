@@ -46,13 +46,13 @@ def disturb_schedule(linedata, sched_in, energy = 1):
     sched_out = deepcopy(sched_in)
     sched_random = schedule.generate_schedule(linedata, True)
 
-    rnd_pm = lambda: rnd.choice([-1,1])
+    rnd_pm = lambda: rnd.choice([-1,1,2])
 
     for line in sched_out:
-        sched_out[line].startTime = t36.timeShift(sched_out[line].startTime, rnd_pm() * 10 * energy)
+        sched_out[line].startTime = t36.timeShift(sched_out[line].startTime, rnd_pm() * 15 * energy)
         sched_out[line].startTrack = sched_random[line].startTrack
         for i in range(0, len(sched_out[line].waitTime)):
-            sched_out[line].waitTime[i] = max(0, sched_out[line].waitTime[i] + rnd_pm() * 10 * energy)
+            sched_out[line].waitTime[i] = max(0, sched_out[line].waitTime[i] + rnd_pm() * 15 * energy)
         sched_out[line].branch = [sched_out[line].random_branch(i) for i in range(len(sched_out[line].branch))]
 
     return sched_out
