@@ -46,22 +46,23 @@ def simulate_state(state: m_state.State, verbose: bool = False, pin_first = True
                 if verbose: 
                     print("stopping at stop " + stop["id"] + " with index " + str(i_stop))
 
-                wait_station = sLine.waitTime[i_stop]
-                time, total_duration, block_station = wait_stop(stop["stop_time"], wait_station, time, total_duration, separation, blockTable, path, verbose = verbose)
-                
-                stats_stop.block_station = block_station
-                if line["stops"][i_stop]["buffer_stop"]: # current stop is designated buffer stop
-                    stats_stop.wait_station_buffer = sLine.waitTime[i_stop]
-                else:
-                    stats_stop.wait_station_nobuffer = sLine.waitTime[i_stop]
+                wait_planned = stop["stop_time"]
+                wait_scheduled = sLine.waitTime[i_stop]
+                wait = wait_planned + wait_scheduled
 
+                time, total_duration, stats_stop.block_station = wait_stop(wait, time, total_duration, separation, blockTable, path, verbose = verbose)
+                
+                if line["stops"][i_stop]["buffer_stop"]: # current stop is designated buffer stop
+                    stats_stop.wait_station_buffer = wait_scheduled
+                else:
+                    stats_stop.wait_station_nobuffer = wait_scheduled
+                    
             timetable["stops"][i_stop]["dep"] = time
 
 
             # traveling to next stop
-            time, total_duration, block_travel = travel(state.sigdata, path, time, total_duration, separation, blockTable, verbose = verbose)
+            time, total_duration, stats_stop.block_travel = travel(state.sigdata, path, time, total_duration, separation, blockTable, verbose = verbose)
             
-            stats_stop.block_travel = block_travel
             timetable["stops"][i_next]["arr"] = time
 
             # wrapping up
@@ -82,7 +83,7 @@ def simulate_state(state: m_state.State, verbose: bool = False, pin_first = True
         # blocking the first stop
         start_signal = get_start_sig(line, sLine, 0)
         path = start_signal["next"][sLine.branch[0]]["path"] 
-        time, total_duration, block_station = wait_stop(0, first_wait, first_arr, total_duration, separation, blockTable, path, verbose = verbose)
+        time, total_duration, block_station = wait_stop(first_wait, first_arr, total_duration, separation, blockTable, path, verbose = verbose)
 
         # TODO: Remove duplicate code 
         stats_line.block_station += block_station
@@ -120,15 +121,14 @@ def get_start_sig(line: dict, sched_line: m_sched.LineSchedule, i_stop):
     return line["routing"][i_stop][start_signal_str]
 
 
-def wait_stop(wait_plan, wait_schedule, time, total_duration, separation, block_table, path, verbose: bool = False):
-    waitTime = wait_plan + wait_schedule
+def wait_stop(wait, time, total_duration, separation, block_table, path, verbose: bool = False):
     time_blocked = 0
 
     for direction in ["N", "K"]:
         path_to_block = "*|" + direction + "_" + path[0][2:]
-        time_blocked += block_path_recurring_timespan(path_to_block, time, waitTime, separation, block_table, verbose)
+        time_blocked += block_path_recurring_timespan(path_to_block, time, wait, separation, block_table, verbose)
 
-    time, total_duration = time_add(time, total_duration, waitTime)
+    time, total_duration = time_add(time, total_duration, wait)
 
     return time, total_duration, time_blocked
 
