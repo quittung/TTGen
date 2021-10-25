@@ -32,17 +32,14 @@ def simulate_state(state: m_state.State, verbose: bool = False, pin_first = True
         for i_stop in range(0, len(line["stops"])):
             i_next = (i_stop + 1) % len(line["stops"])
 
-            start_signal = get_start_sig(line, sLine, i_stop)
-
             stop = line["stops"][i_stop]
+            start_signal = get_start_sig(line, sLine, i_stop)
             path = start_signal["next"][sLine.branch[i_stop]]["path"] 
 
             stats_stop = SimStats()
 
-            # waiting at stop
+            # don't wait at first stop because arrival time is not determined yet
             if i_stop > 0:
-                if verbose and stop["id"] == "ACT":
-                    print("somthing")
                 if verbose: 
                     print("stopping at stop " + stop["id"] + " with index " + str(i_stop))
 
@@ -71,8 +68,7 @@ def simulate_state(state: m_state.State, verbose: bool = False, pin_first = True
 
         
         # correcting first arrival time
-        separation = line["separation"] * 60 # separation between trains on same route
-        cycle_duration = total_duration - total_duration % separation + separation # time between visits of a specific train at a station
+        cycle_duration = total_duration - total_duration % separation + separation # time a train takes to rech its starting position again
 
         first_dep = timetable["stops"][0]["dep"]
         first_arr = timetable["stops"][0]["arr"]
