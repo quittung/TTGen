@@ -1,11 +1,19 @@
+"""Turning states into finished timetables."""
 import math
 from copy import deepcopy
 from . import fileops, state as m_state, time3600 as t36
 
-def dump(timetable):
-    """writes complete timetable to file"""
+def dump(timetable: dict) -> None:
+    """Writes timetable to disk in standard directory.
+
+    Args:
+        timetable (dict): Timetable dict to write.
+    """  
+    # create copy of timetable so time format can be changed without modifying the original 
     timetable = deepcopy(timetable)
+
     for l, tt_line in timetable.items():
+        # make time human readable
         for i in range(len(tt_line["stops"])):
             tt_line["stops"][i]["arr"] = t36.timeFormat(tt_line["stops"][i]["arr"])
             tt_line["stops"][i]["dep"] = t36.timeFormat(tt_line["stops"][i]["dep"])
@@ -16,8 +24,16 @@ def dump(timetable):
         print("")
 
 
-def collect_timetable(state: m_state.State, dump_file: bool = False):
-    """collects all relevant info from a state obj and generates a stand alone timetable"""
+def collect_timetable(state: m_state.State, dump_file: bool = False) -> dict:    
+    """Generates timetable from state. Optionally write timetable to file.
+
+    Args:
+        state (m_state.State): State to get data from.
+        dump_file (bool, optional): Flag for writing timetable to file. Defaults to False.
+
+    Returns:
+        dict: Dictionary containing completed timetable.
+    """    
     tt_collection = {}
 
     for l, t in state.timetable.items():
