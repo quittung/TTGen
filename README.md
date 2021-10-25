@@ -2,25 +2,29 @@
 ## Introduction
 I am making this so I can generate schedules for my trains in Transport Fever 2. It only covers the planning part, the in game functionality is provided by [TPF2-Timetables](https://github.com/IncredibleHannes/TPF2-Timetables).
 
-The scheduling algorithm is inspired by genetic search algorithms. It sort of works at the moment, but it's probably far from efficient.
+The scheduling algorithm is inspired by genetic search algorithms. It works for the test data, but it still needs improvement and rigorous testing.
 
 TTGen may or may not be useful for other use cases in the future, like other games or model trains. Nothing so far is specific to TF2. 
 
 ## Current State
- - At the time of this update, the project is somewhere between a proof of concept and a very early alpha version
+ - At the time of this update, the project is slowly approaching a very early alpha version
  - There is no usable UI
- - The scheduler sort of works, but it still has lots of obvious flaws
+ - The scheduler works in general, but it still has lots of obvious flaws
  - All data has to be transferred between TTGen and the game manually
- - There is basically no documentation outside of the code
+ - There is very little documentation outside of the code
  - The code is still very messy
 
 ## How to use
+### Dependencies etc.
+ - Because of type hinting the code requires Python 3.9 or greater
+ - Visualization of the results requires plotly
+
 ### Basic testing
 To try the script on sample data, follow the steps below. It contains 4 stations in a row and two lines.
  - Copy the contents of docs/testdata/ to /data
  - Run ttgen/ttgen.py
- - Wait (usually just a few seconds)
- - Look at the generated timetable at /data/timetables
+ - Wait (usually less than a minute)
+ - Look at the graphs in your browser or the generated timetable at /data/timetables
 
 ## General Concepts
 ### Data
