@@ -117,7 +117,7 @@ def gmo_search(state_template: m_state.State, pop_size: int = 25, survival = 0.5
 
         if (max_iter != -1 and iteration >= max_iter         # max iterations reached
             or schedule_scores[ranking[0]] == 0              # perfect solution found
-            or (no_conflicts and abs(score_trend) < 0.001)): # acceptable solution and no progress
+            or (no_conflicts and iteration > 15 and abs(score_trend) < 0.001)): # acceptable solution and no progress
 
             print(schedule_scores[ranking[0]])
             if visualize or True: 
