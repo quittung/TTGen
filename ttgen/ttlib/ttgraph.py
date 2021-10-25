@@ -1,9 +1,7 @@
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import plotly.io as pio
-import random
-
-import datetime
+import random, colorsys, datetime
 
 pio.templates.default = "plotly_dark"
 
@@ -14,6 +12,7 @@ def graph(timetable): # HACK everything about this, especially hard coding line 
 
     # Create figure with secondary y-axis
     fig = make_subplots()
+    hue = 0
 
     # Add traces
     for l in timetable.values():
@@ -21,7 +20,10 @@ def graph(timetable): # HACK everything about this, especially hard coding line 
         line_separation = l["separation"] * 60
         line_hourly_deps = int(3600 / line_separation)
         cycle_duration = line_separation * line_trains
-        line_color = "#%06x" % random.randint(0, 0xFFFFFF)
+
+        c = colorsys.hsv_to_rgb(hue, 0.7, 0.7)
+        line_color = '#%02x%02x%02x' % (int(c[0]*255), int(c[1]*255), int(c[2]*255))
+        hue = (hue + 0.412345) % 1 
 
         line_stations = []
         line_timing = []
