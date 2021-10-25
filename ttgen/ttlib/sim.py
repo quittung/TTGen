@@ -80,7 +80,7 @@ def simulate_state(state: m_state.State, verbose: bool = False, pin_first = True
         timetable["stops"][0]["arr"] = first_arr
 
         # blocking the first stop
-        start_signal = get_start_sig(line, sLine, len(line["stops"]) - 1)
+        start_signal = get_start_sig(line, sLine, 0)
         path = start_signal["next"][sLine.branch[0]]["path"] 
         time, total_duration, block_station = wait_stop(0, first_wait, first_arr, total_duration, separation, blockTable, path, verbose = verbose)
 
