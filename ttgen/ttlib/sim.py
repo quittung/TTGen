@@ -21,13 +21,13 @@ def simulate_state(state: m_state.State, verbose: bool = False, pin_first = True
         state.timetable[line["id"]] = timetable
         separation = line["separation"] * 60
     
-        time = sLine.startTime
-        total_duration = 0
-        stats_line = SimStats()
-
         if pin_first:
             sLine.startTime = 0
             pin_first = False
+
+        time = sLine.startTime
+        total_duration = 0
+        stats_line = SimStats()
 
         for i_stop in range(0, len(line["stops"])):
             i_next = (i_stop + 1) % len(line["stops"])
