@@ -1,8 +1,5 @@
 """Keeping track of numerical data over time"""
 
-from ttgen.ttlib.gmo_mini import sample_last
-
-
 class Statistics:
     """Statistics class for keeping track of sequences of numerical data by keys."""
     def __init__(self) -> None:

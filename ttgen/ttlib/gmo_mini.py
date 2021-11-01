@@ -1,3 +1,4 @@
+"""Coordinates search for a working schedule using mutation and selection."""
 from copy import deepcopy
 import random as rnd
 from multiprocessing.dummy import Pool as ThreadPool
@@ -6,15 +7,30 @@ from time import perf_counter
 from . import schedule, sim, state as m_state, time3600 as t36, statistics
 from .simhelper import SimStats
 
-default_scoring = SimStats(
+
+default_scoring:SimStats = SimStats(
     block_travel=1,
     block_station=1,
     wait_station_nobuffer=1/15,
     wait_station_buffer=1/15/15
 )
+"""Default weights used for scoring a schedule."""
 
-def smash_schedules(linedata, s1, s2, pr = 0.02, related: bool = True, energy = 1):
-    """mixes two schedules with a chance of random mutation"""
+
+def smash_schedules(linedata: dict[str, dict], s1: dict[str, dict], s2: dict[str, dict], pr: float = 0.02, related: bool = True, energy: float = 1) -> dict[str, dict]:
+    """Generates schedule based on two parents and random mutation.
+
+    Args:
+        linedata (dict[str, dict]): Line data from relevant state.
+        s1 (dict[str, dict]): Parent A.
+        s2 (dict[str, dict]): Parent B.
+        pr (float, optional): Chance of random mutation. Defaults to 0.02.
+        related (bool, optional): Base mutation on current values. Defaults to True.
+        energy (float, optional): Strength of mutation. Defaults to 1.
+
+    Returns:
+        dict[str, dict]: Resulting child schedule.
+    """
     s = mix_schedules(s1, s2, 0.5)
 
     #sr = schedule.generateRandomSchedule(linedata)
@@ -24,8 +40,17 @@ def smash_schedules(linedata, s1, s2, pr = 0.02, related: bool = True, energy = 
     return s
 
 
-def mix_schedules(s1, s2, p = 0.5):
-    """mixes two schedules with configurable weighting"""
+def mix_schedules(s1: dict[str, dict], s2: dict[str, dict], p:float = 0.5) -> dict[str, dict]:
+    """Mixes two schedules with configurable weighting.
+
+    Args:
+        s1 (dict[str, dict]): First base schedule.
+        s2 (dict[str, dict]): Second base schedule.
+        p (float, optional): Chance that any given trait is base of first schedule. Defaults to 0.5.
+
+    Returns:
+        dict[str, dict]: Mixed schedule.
+    """    
     s = deepcopy(s1)
     s_list = [s1, s2]
 
@@ -43,8 +68,17 @@ def mix_schedules(s1, s2, p = 0.5):
     return s
 
 
-def disturb_schedule(linedata, sched_in, energy = 1):
-    """less agressive randomization of schedule by modifying an existing one"""
+def disturb_schedule(linedata: dict[str, dict], sched_in: dict[str, dict], energy: float = 1) -> dict[str, dict]:
+    """Generates schedule with random incremental changes based on a reference schedule.
+
+    Args:
+        linedata (dict[str, dict]): Line data of relevant state.
+        sched_in (dict[str, dict]): Reference schedule.
+        energy (float, optional): Randomization strength. Defaults to 1.
+
+    Returns:
+        dict[str, dict]: [description]
+    """
     sched_out = deepcopy(sched_in)
     sched_random = schedule.generate_schedule(linedata, True)
 
@@ -61,8 +95,19 @@ def disturb_schedule(linedata, sched_in, energy = 1):
 
 
 def gmo_search(state_template: m_state.State, pop_size: int = 25, survival = 0.5, max_iter: int = 5000, scoring: SimStats = default_scoring, visualize: bool = True) -> m_state.State:
-    """randomly mutates a population of schedules and uses evolutionary mechanisms to find a solution"""
+    """Iterates through cycles of random mutation and selection to find a working schedule.
 
+    Args:
+        state_template (m_state.State): State to generate schedule for.
+        pop_size (int, optional): Amount of schedules to work with in each generation. Defaults to 25.
+        survival (float, optional): Share of each generation that survives. Defaults to 0.5.
+        max_iter (int, optional): Max number of iteration before giving up. Defaults to 5000.
+        scoring (SimStats, optional): Coefficients for scoring a schedule. Defaults to default_scoring.
+        visualize (bool, optional): Additional visualization of progress. Defaults to True.
+
+    Returns:
+        m_state.State: State with the best solution.
+    """    
     schedule_list = [schedule.generate_schedule(state_template.linedata, True) for i in range(0, pop_size)]
     pool = ThreadPool()
 
@@ -114,10 +159,10 @@ def gmo_search(state_template: m_state.State, pop_size: int = 25, survival = 0.5
         # terminate search if conditions are met
         no_conflicts = stats_best.block_station == 0 and stats_best.block_travel == 0
 
-
-        if (max_iter != -1 and iteration >= max_iter         # max iterations reached
-            or schedule_scores[ranking[0]] == 0              # perfect solution found
-            or (no_conflicts and iteration > 15 and abs(score_trend) < 0.001)): # acceptable solution and no progress
+        if (max_iter != -1 and iteration >= max_iter    # max iterations reached
+            or schedule_scores[ranking[0]] == 0         # perfect solution found
+            or (no_conflicts and iteration > 15 
+                and abs(score_trend) < 0.001)):         # acceptable solution and no progress
 
             print(schedule_scores[ranking[0]])
             if visualize or True: 
@@ -130,62 +175,29 @@ def gmo_search(state_template: m_state.State, pop_size: int = 25, survival = 0.5
         # creation of next generation
         ranking = ranking[0:int(max(pop_size * survival, min(pop_size, 5)))]
         ranking = [schedule_list[i] for i in ranking]
+        stag_staleness_avg = stats.rolling_avg("stag_staleness")
 
         smash = lambda n, randomness = 0.02, related = True, energy = 1: [smash_schedules(state.linedata, rnd.choice(ranking), rnd.choice(ranking), randomness, related, energy) for i in range(n)]
         
-        stag_staleness_avg = stats.rolling_avg("stag_staleness")
-
-
+        # decide level of randomization
         if (score_trend > -0.025 and not no_conflicts):
             if stag_staleness_avg > 0.975:
-                #print("Stale gene pool ({:.1f}%) detected in generation {}, introducing randomness.".format(stag_staleness_avg * 100, iteration))
-                #schedule_list = smash(pop_size, 0.05, False)
                 schedule_list = smash(pop_size, 0.05, True, 30)
             else:
-                #print("Progress slowing down in generation {}, increasing mutation.".format(iteration))
                 schedule_list = smash(pop_size, 0.05, True, 6)
         else:
             schedule_list = smash(pop_size)
 
+
         iteration += 1
 
 
-def sample_last(data: list, lookback: int = 10):
-    lookback = min(lookback, len(data))
-    return data[-lookback:]
-
-
-def rolling_avg(data: list, lookback: int = 10):
-    sample = sample_last(data, lookback)
-    return sum(sample) / len(sample)
-
-
 def show_timetable(state):
+    """Graphs time table from a given state.
+
+    Args:
+        state ([type]): State to generate time table from.
+    """
     from . import timetable, ttgraph
     tt = timetable.collect_timetable(state)
     ttgraph.graph(tt)
-
-
-def visualize_progress(score_history):
-    import plotly.graph_objects as go
-    from plotly.subplots import make_subplots
-
-    # Create figure with secondary y-axis
-    fig = make_subplots()
-
-    # Add traces
-    fig.add_trace(go.Scatter(y = score_history, name="score history"))
-
-    # Add figure title
-    fig.update_layout(
-        title_text="gmo seach",
-        theme="plotly_dark"
-    )
-
-    # Set x-axis title
-    fig.update_xaxes(title_text="iteration")
-
-    # Set y-axes titles
-    fig.update_yaxes(title_text="average score")
-
-    fig.show()
