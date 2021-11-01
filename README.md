@@ -19,8 +19,8 @@ TTGen may or may not be useful for other use cases in the future, like other gam
 To try the script on sample data, follow the steps below. It contains 4 stations in a row and two lines.
  - Copy the contents of docs/testdata/ to /data
  - Run ttgen/ttgen.py
- - Wait (usually just a few seconds)
- - Look at the generated timetable at /data/timetables
+ - Wait (usually just about a minute)
+ - Look at the generated timetable in your browser or at /data/timetables.
 
 ## How it works
  1. A set of random schedules is generated based on the line data
@@ -29,4 +29,7 @@ To try the script on sample data, follow the steps below. It contains 4 stations
  4. Go back to 2. until a solution has been found
  5. The best schedule is exported to data/timetables/[line_id].json
 
-If you want to know more, check out the docs or the code. I recommend starting with the [control flow overview][docs/control_flow.md]
+If you want to know more, check out the docs or the code. I recommend starting with the [control flow overview](docs/control_flow.md).
+
+## Other Questions
+As I mentioned above, the documentation is far from complete. If you have any questions, feel free to open an issue 
