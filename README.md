@@ -22,20 +22,11 @@ To try the script on sample data, follow the steps below. It contains 4 stations
  - Wait (usually just a few seconds)
  - Look at the generated timetable at /data/timetables
 
-## General Concepts
-### Data
- - Infrastructure data
-  - Location: data/signals/[station_id].json
-  - Description: Paths between signals and information about other paths they block
-  - Source: Manual creation or generation with ttgen/station_gen.py; TF2 export planned
- - Line data
-  - Location: data/lines/[line_id].json
-  - Description: Name, frequency and stops of a line
-  - Source: Manual creation
-  
-### Processing
+## How it works
  1. A set of random schedules is generated based on the line data
  2. All schedules are simulated and ranked by the amount of time spent waiting outside of designated stops
  3. A new set of schedules is generated based on the better performing half, introducing some amount of random changes
  4. Go back to 2. until a solution has been found
  5. The best schedule is exported to data/timetables/[line_id].json
+
+If you want to know more, check out the docs or the code. I recommend starting with the [control flow overview][docs/control_flow.md]

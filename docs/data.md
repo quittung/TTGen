@@ -1,6 +1,11 @@
 # Data Files
- - data folder should be in project route
- - station_gen.py takes manual input or cached info in data/stations_raw to generate data in data/signals
- - data/lines outlines the route and behaviour of a line in general
+ - Infrastructure data
+  - Location: data/signals/[station_id].json
+  - Description: Paths between signals and information about other paths they block
+  - Source: Manual creation or generation with ttgen/station_gen.py; TF2 export planned
+ - Line data
+  - Location: data/lines/[line_id].json
+  - Description: Name, frequency and stops of a line
+  - Source: Manual creation
 
-For now you'll have to look at the files themselves if you want to know more about them. It's just a bunch of .json files.
+This file is incomplete. Refer to other documentation, the code, or create an issue to get more info. 
