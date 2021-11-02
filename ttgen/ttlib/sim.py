@@ -1,3 +1,4 @@
+"""Handles simulation of a state."""
 from . import time3600 as t36
 from . import state as m_state
 from . import schedule as m_sched
@@ -8,7 +9,17 @@ from .simhelper import *
 time_step = 15 # HACK
 
 
-def simulate_state(state: m_state.State, verbose: bool = False, pin_first = True):
+def simulate_state(state: m_state.State, verbose: bool = False, pin_first = True) -> SimStats:
+    """Simulates a state, populates time table and returns stats about conflicts and other issues.
+
+    Args:
+        state (m_state.State): State to base simulation on.
+        verbose (bool, optional): Flag for additional terminal output. Defaults to False.
+        pin_first (bool, optional): Pin the first departure time to 00:00. Defaults to True.
+
+    Returns:
+        SimStats: Stats about conflicts and other issues.
+    """    
     blockTable = generateBlocktable(time_step)
 
     stats_schedule = SimStats()
@@ -99,8 +110,17 @@ def simulate_state(state: m_state.State, verbose: bool = False, pin_first = True
 
     return stats_schedule
 
-def get_start_sig(line: dict, sched_line: m_sched.LineSchedule, i_stop):
-    """select start signal from branching data and target signals of last stop"""
+def get_start_sig(line: dict, sched_line: m_sched.LineSchedule, i_stop: int) -> dict:
+    """Select start signal from branching data and target signals of last stop.
+
+    Args:
+        line (dict): Line to use.
+        sched_line (m_sched.LineSchedule): Schedule for that line.
+        i_stop (int): Index of the stop in question.
+
+    Returns:
+        dict: Start signal.
+    """    
     i_prev = (i_stop - 1) % len(line["stops"])
 
     target_signals = list(line["routing"][i_prev].values())[0]["next"]
@@ -117,11 +137,27 @@ def get_start_sig(line: dict, sched_line: m_sched.LineSchedule, i_stop):
     return line["routing"][i_stop][start_signal_str]
 
 
-def wait_stop(wait, time, total_duration, separation, block_table, path, verbose: bool = False):
+def wait_stop(wait: float, time: float, total_duration: float, separation: float, 
+              block_table: dict[int, set[str]], path: list[str], verbose: bool = False) -> tuple[float, float, float]:
+    """Wait at a stop while keeping track of conflicts.
+
+    Args:
+        wait (float): Time delta to wait.
+        time (float): Time at start of wait.
+        total_duration (float): Total time spent on line at start of wait.
+        separation (float): Separation between trains on line.
+        block_table (dict[int, set[str]]): Dictionary containing all block reservations.
+        path (list[str]): List of signal paths to next station.
+        verbose (bool, optional): Flag for additional terminal output. Defaults to False.
+
+    Returns:
+        tuple[float, float, float]: Updated values for time, total duration and time in conflict with other trains.
+    """              
+    
     time_blocked = 0
 
     for direction in ["N", "K"]:
-        path_to_block = "*|" + direction + "_" + path[0][2:]
+        path_to_block = "*|" + direction + "_" + path[0][2:] # TODO: Move this out of the function, only pass the value of path[0][2:]
         time_blocked += block_path_recurring_timespan(path_to_block, time, wait, separation, block_table, verbose)
 
     time, total_duration = time_add(time, total_duration, wait)
@@ -129,7 +165,23 @@ def wait_stop(wait, time, total_duration, separation, block_table, path, verbose
     return time, total_duration, time_blocked
 
 
-def travel(sigdata, path, time, total_duration, separation, block_table, block = True, wait = True, verbose: bool = False):
+def travel(sigdata: dict, path: list[str], time: float, total_duration: float, separation: float, 
+           block_table: dict[int, set[str]], block = True, verbose: bool = False) -> tuple[float, float, float]:
+    """Travel to next stop while keeping track of conflicts
+
+    Args:
+        sigdata (dict): Info about signals from state data.
+        path (list[str]): List of signal paths to next station.
+        time (float): Time at start of travel.
+        total_duration (float): Total time spent on line at start of travel.
+        separation (float): Separation between trains on line.
+        block_table (dict[int, set[str]]): Dictionary containing all block reservations.
+        block (bool, optional): Block the signal paths instead of just reporting on conflicts. Defaults to True.
+        verbose (bool, optional): Flag for additional terminal output. Defaults to False.
+
+    Returns:
+        tuple[float, float, float]: Updated values for time, total duration and time in conflict with other trains.
+    """           
     time_conflict = 0
 
     for i in range(0, len(path) - 1):
