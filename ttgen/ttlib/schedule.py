@@ -1,6 +1,6 @@
+"""Handles logic and data around the exact implementation of a line."""
 import random
 from copy import deepcopy
-from . import time3600 as t36
 
 
 
@@ -8,9 +8,15 @@ timeStep = 15 # HACK
 
 
 class LineSchedule:
-    """Contains all data on what the line will do at what point"""
+    """Specifies exact path, start time, additional wait and other things for a line."""
 
     def __init__(self, line, randomize = False) -> None:
+        """Initializes the schedule based on line data.
+
+        Args:
+            line ([type]): Line data from state object.
+            randomize (bool, optional): Randomize starting values. Defaults to False.
+        """        
         self.line = line
         numberStops = len(line["stops"])
 
@@ -24,8 +30,6 @@ class LineSchedule:
             self.startTrack = 0
             self.waitTime = [0] * numberStops
             self.branch = [0] * numberStops
-
-        #self.verifyBranching(True)
 
 
     def __repr__(self) -> str:
@@ -41,48 +45,29 @@ class LineSchedule:
         return lstmp
 
 
-    def verifyBranching(self):
-        """ disconnected = False
-        for i in range(0, len(self.branch)):
-            checkIfTheNext
-        pass """
-        # TODO: idk, is this necessary?
-        pass
+    def random_branch(self, stop: int) -> dict:
+        """Chooses a random branch originating from a given stop.
 
+        Args:
+            stop (int): Index of origin stop.
 
-    def random_branch(self, stop: int):
+        Returns:
+            dict: Path to next stop.
+        """        
         next_stop = (stop + 1) % len(self.line["stops"])
         return random.randrange(0, len(self.line["routing"][next_stop]))
 
 
+def generate_schedule(linedata: dict, random: bool = False):
+    """Generates a set of line schedules for each line listed in the line data.
 
-def mutateLineSchedule(ls: LineSchedule, line):
-    while True:
-        action = random.randint(0,3)
-        stop = random.randrange(0, len(ls.waitTime))
-        if action == 0:
-            # modify start time
-            ls.startTime = t36.timeShift(ls.startTime, timeStep * random.choice([-1,1]))
-            break
-        elif action == 1:
-            # modify start track
-            oldStart = ls.startTrack
-            ls.startTrack = random.randrange(0, len(line["routing"][0]))
-            if not oldStart == ls.startTrack:
-                break
-        elif action == 2:
-            # modify a random waitTime
-            ls.waitTime[stop] = max(0, ls.waitTime[stop] + timeStep * random.choice([-1,1]))
-            break
-        else:
-            # modify a random branching instruction
-            # mutation.branch[stop] =
-            pass 
+    Args:
+        linedata (dict): Line data from state object.
+        random (bool, optional): Randomize starting values. Defaults to False.
 
-    return ls
-
-
-def generate_schedule(linedata, random = False):
+    Returns:
+        [type]: [description]
+    """    
     sr = {}
     for line in linedata.values():
         sr[line["id"]] = LineSchedule(line, random)
